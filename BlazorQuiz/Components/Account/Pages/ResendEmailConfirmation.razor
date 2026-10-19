@@ -1,0 +1,11 @@
+﻿@page "/Account/ResendEmailConfirmation"
+
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Email confirmation resend is disabled. Redirect to login page.
+        NavigationManager.NavigateTo("/Account/Login");
+    }
+}

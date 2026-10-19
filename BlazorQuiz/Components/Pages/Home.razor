@@ -1,0 +1,207 @@
+@page "/"
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
+@inject NavigationManager Navigation
+
+<PageTitle>Quiz System</PageTitle>
+<div class="home-corner">
+    <LanguageSwitcher />
+    <AuthorizeView>
+        <Authorized>
+            <a class="btn btn-outline-primary btn-sm" href="/quiz-editor"><i class="bi bi-speedometer2 me-1"></i>Admin</a>
+        </Authorized>
+        <NotAuthorized>
+            <a class="btn btn-outline-primary btn-sm" href="Account/Login"><i class="bi bi-box-arrow-in-right me-1"></i>@L.T("Masuk", "Sign in")</a>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="text-center mb-5">
+                <h1 class="display-4 mb-3">Quiz System</h1>
+                <p class="lead text-muted">
+                    @L.T("Quiz real-time untuk host dan peserta.", "Real-time quizzes for hosts and participants.")
+                </p>
+            </div>
+
+            <!-- Demo Reset Notice -->
+            <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-clock-history fs-4 me-3 text-primary flex-shrink-0"></i>
+                <div>
+                    <strong>@L.T("Mode Demo:", "Demo Mode:")</strong>
+                    <span>@L.T("Data kuis, sesi, dan leaderboard akan otomatis di-reset setiap pukul 00:00 WIB (GMT+7).", "Quiz data, sessions, and leaderboards are automatically reset every day at 00:00 WIB (GMT+7).")</span>
+                </div>
+            </div>
+
+            <div class="card border-info mb-4 home-join">
+                <div class="card-body text-center py-5">
+                    <h2 class="card-title">@L.T("Gabung Quiz", "Join Quiz")</h2>
+                    <form method="post" @formname="join-quiz" @onsubmit="JoinQuiz" class="home-join-form">
+                        <AntiforgeryToken />
+                        <label for="home-session-code" class="form-label">@L.T("Kode sesi dari host", "Session code from the host")</label>
+                        <input id="home-session-code" name="joinCode" class="form-control form-control-lg text-center fw-bold mb-3"
+                               maxlength="12" autocomplete="off" autocapitalize="characters" required
+                               @bind="joinCode" />
+                        <button type="submit" class="btn btn-info btn-lg w-100">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>@L.T("Gabung", "Join")
+                        </button>
+                    </form>
+                    <small class="text-muted mt-2 d-block">
+                        <i class="bi bi-unlock-fill me-1"></i>@L.T("Tidak perlu login", "No login required")
+                    </small>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-pencil-square fs-1 text-primary mb-2 d-block"></i>
+                            <h5 class="card-title">@L.T("Editor Quiz", "Quiz Editor")</h5>
+                            <p class="card-text">@L.T("Buat dan edit quiz dengan pertanyaan multiple choice.", "Create and edit quizzes with multiple-choice questions.")</p>
+                            <AuthorizeView>
+                                <Authorized>
+                                    <a href="/quiz-editor" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle me-2"></i>@L.T("Buat Quiz", "Create Quiz")
+                                    </a>
+                                </Authorized>
+                                <NotAuthorized>
+                                    <a href="/auto-login?target=editor" class="btn btn-primary">
+                                        <i class="bi bi-lightning-fill me-1"></i>@L.T("Editor Quiz (Auto-login)", "Quiz Editor (Auto-login)")
+                                    </a>
+                                    <small class="text-success mt-2 d-block">
+                                        <i class="bi bi-shield-check me-1"></i>@L.T("1-Klik Demo Login", "1-Click Demo Login")
+                                    </small>
+                                </NotAuthorized>
+                            </AuthorizeView>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-person-video3 fs-1 text-primary mb-2 d-block"></i>
+                            <h5 class="card-title">Host Quiz</h5>
+                            <p class="card-text">@L.T("Jalankan quiz secara real-time dan pantau jawaban peserta.", "Run a quiz in real time and follow participants' answers.")</p>
+                            <AuthorizeView>
+                                <Authorized>
+                                    <a href="/quiz-host" class="btn btn-primary">
+                                        <i class="bi bi-play-fill me-2"></i>@L.T("Mulai Sesi", "Start Session")
+                                    </a>
+                                </Authorized>
+                                <NotAuthorized>
+                                    <a href="/auto-login?target=host" class="btn btn-primary">
+                                        <i class="bi bi-lightning-fill me-1"></i>@L.T("Host Quiz (Auto-login)", "Host Quiz (Auto-login)")
+                                    </a>
+                                    <small class="text-success mt-2 d-block">
+                                        <i class="bi bi-shield-check me-1"></i>@L.T("1-Klik Demo Login", "1-Click Demo Login")
+                                    </small>
+                                </NotAuthorized>
+                            </AuthorizeView>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-trophy-fill fs-1 text-primary mb-2 d-block"></i>
+                            <h5 class="card-title">Leaderboard</h5>
+                            <p class="card-text">@L.T("Lihat peringkat dan statistik peserta secara real-time.", "See rankings and participant statistics in real time.")</p>
+                            <a href="/leaderboard" class="btn btn-primary">
+                                <i class="bi bi-bar-chart me-2"></i>@L.T("Lihat Peringkat", "View Rankings")
+                            </a>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="bi bi-unlock-fill me-1"></i>@L.T("Tidak perlu login", "No login required")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#instructionsModal">
+                    <i class="bi bi-question-circle me-2"></i>@L.T("Cara bermain", "How to play")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions Modal -->
+<div class="modal fade" id="instructionsModal" tabindex="-1" aria-labelledby="instructionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="instructionsModalLabel">
+                    <i class="bi bi-info-circle me-2"></i>@L.T("Cara Menggunakan Quiz System", "How to Use Quiz System")
+                </h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@L.T("Tutup", "Close")"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        
+
+                        <h5><i class="bi bi-1-circle-fill text-primary me-2"></i>@L.T("Membuat Quiz", "Creating a Quiz")</h5>
+                        <ul>
+                            <li>@L.T("Masuk terlebih dahulu", "Sign in first")</li>
+                            <li>@L.T("Klik tombol \"Buat Quiz\" atau pergi ke", "Click \"Create Quiz\" or go to") <strong>@L.T("Editor Quiz", "Quiz Editor")</strong></li>
+                            <li>@L.T("Masukkan judul dan deskripsi quiz", "Enter the quiz title and description")</li>
+                            <li>@L.T("Tambah pertanyaan dengan opsi multiple choice", "Add questions with multiple-choice options")</li>
+                            <li>@L.T("Tentukan jawaban yang benar untuk setiap pertanyaan", "Mark the correct answer for each question")</li>
+                            <li>@L.T("Simpan quiz ke database", "Save the quiz to the database")</li>
+                        </ul>
+
+                        <h5 class="mt-4"><i class="bi bi-2-circle-fill text-success me-2"></i>@L.T("Menjalankan Quiz", "Running a Quiz")</h5>
+                        <ul>
+                            <li>@L.T("Masuk dan pergi ke", "Sign in and go to") <strong>Host Quiz</strong></li>
+                            <li>@L.T("Pilih quiz yang sudah dibuat", "Pick a quiz you have created")</li>
+                            <li>@L.T("Buat sesi quiz - akan mendapat kode sesi unik", "Create a quiz session - you get a unique session code")</li>
+                            <li>@L.T("Bagikan kode sesi kepada peserta", "Share the session code with participants")</li>
+                            <li>@L.T("Mulai quiz dan navigasikan antar pertanyaan", "Start the quiz and move between questions")</li>
+                        </ul>
+
+                        <h5 class="mt-4"><i class="bi bi-3-circle-fill text-info me-2"></i>@L.T("Mengikuti Quiz", "Taking a Quiz")</h5>
+                        <ul>
+                            <li>@L.T("Pergi ke", "Go to") <strong>@L.T("Gabung Quiz", "Join Quiz")</strong> @L.T("(tidak perlu login)", "(no login required)")</li>
+                            <li>@L.T("Masukkan kode sesi dari host", "Enter the session code from the host")</li>
+                            <li>@L.T("Masukkan nama Anda", "Enter your name")</li>
+                            <li>@L.T("Tunggu host memulai quiz", "Wait for the host to start the quiz")</li>
+                            <li>@L.T("Jawab setiap pertanyaan secepat mungkin untuk poin maksimal", "Answer each question as fast as you can for maximum points")</li>
+                        </ul>
+
+                        <h5 class="mt-4"><i class="bi bi-trophy-fill text-primary me-2"></i>@L.T("Sistem Poin", "Scoring")</h5>
+                        <ul>
+                            <li>@L.T("Jawaban benar mendapat poin berdasarkan kecepatan", "Correct answers earn points based on speed")</li>
+                            <li>@L.T("Semakin cepat menjawab, semakin banyak poin", "The faster you answer, the more points you get")</li>
+                            <li>@L.T("Jawaban salah tidak mendapat poin", "Wrong answers earn no points")</li>
+                            <li>@L.T("Leaderboard diupdate secara real-time", "The leaderboard updates in real time")</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L.T("Tutup", "Close")</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm(Name = "joinCode")]
+    private string? joinCode { get; set; }
+
+    private void JoinQuiz()
+    {
+        var code = joinCode?.Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(code))
+        {
+            Navigation.NavigateTo("/quiz");
+            return;
+        }
+        Navigation.NavigateTo($"/quiz/{Uri.EscapeDataString(code)}");
+    }
+}

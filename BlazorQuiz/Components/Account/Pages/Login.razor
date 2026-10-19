@@ -1,0 +1,171 @@
+@page "/Account/Login"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using BlazorQuiz.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>@L.T("Masuk", "Sign in") - Quiz System</PageTitle>
+
+<div class="container mt-5">
+    <div class="text-end mb-2"><LanguageSwitcher /></div>
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h2 class="card-title">
+                            <i class="bi bi-box-arrow-in-right me-2 text-primary"></i>
+                            @L.T("Masuk", "Sign in")
+                        </h2>
+                        <p class="text-muted">@L.T("Masuk ke Quiz System", "Sign in to Quiz System")</p>
+                    </div>
+
+                    <StatusMessage Message="@errorMessage" />
+
+                    <!-- Demo Reset Info -->
+                    <div class="alert alert-info py-2 px-3 mb-3 small d-flex align-items-center" role="alert">
+                        <i class="bi bi-clock-history me-2 text-primary flex-shrink-0"></i>
+                        <span>@L.T("Mode Demo: Data otomatis di-reset setiap pukul 00:00 WIB (GMT+7).", "Demo Mode: Data is reset automatically every day at 00:00 WIB (GMT+7).")</span>
+                    </div>
+
+                    <!-- 1-Click Auto Login -->
+                    <div class="card p-3 mb-4 bg-light border-primary">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-lightning-charge-fill me-2 text-primary"></i>
+                            <strong class="text-primary">@L.T("Auto-Login Cepat (Demo)", "Quick Auto-Login (Demo)")</strong>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a href="/auto-login?target=host" class="btn btn-primary w-100 py-2">
+                                    <i class="bi bi-person-video3 me-1"></i>Host Quiz
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="/auto-login?target=editor" class="btn btn-outline-primary w-100 py-2">
+                                    <i class="bi bi-pencil-square me-1"></i>Editor Quiz
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <EditForm Model="Input" method="post" OnSubmit="LoginUser" FormName="login">
+                        
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                            <label for="email" class="form-label">Email</label>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+                            <label for="password" class="form-label">@L.T("Kata sandi", "Password")</label>
+                        </div>
+                        
+                        <div class="form-check mb-4">
+                            <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" id="rememberMe" />
+                            <label class="form-check-label" for="rememberMe">
+                                @L.T("Ingat saya", "Remember me")
+                            </label>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>
+                                @L.T("Masuk", "Sign in")
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    <div class="text-center mt-4">
+                        <a href="/" class="text-muted text-decoration-none">
+                            <i class="bi bi-arrow-left me-1"></i>
+                            @L.T("Kembali ke Beranda", "Back to Home")
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            // Clear the existing external cookie to ensure a clean login process
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task LoginUser()
+    {
+        if (string.IsNullOrWhiteSpace(Input.Email))
+        {
+            errorMessage = L.T("Email wajib diisi", "Email is required");
+            return;
+        }
+
+        if (!new EmailAddressAttribute().IsValid(Input.Email))
+        {
+            errorMessage = L.T("Format email tidak valid", "Invalid email format");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Input.Password))
+        {
+            errorMessage = L.T("Kata sandi wajib diisi", "Password is required");
+            return;
+        }
+
+        // This doesn't count login failures towards account lockout
+        // To enable password failures to trigger account lockout, set lockoutOnFailure: true
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo(
+                "Account/LoginWith2fa",
+                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            errorMessage = L.T("Email atau kata sandi salah. Silakan coba lagi.", "Incorrect email or password. Please try again.");
+        }
+    }
+
+    private sealed class InputModel
+    {
+        public string Email { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        public bool RememberMe { get; set; }
+    }
+}

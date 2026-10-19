@@ -1,0 +1,170 @@
+@page "/activity-logs"
+@using BlazorQuiz.Models
+@using BlazorQuiz.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IActivityLogService ActivityLogService
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<PageTitle>@L.T("Log Aktivitas", "Activity Log")</PageTitle>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="bi bi-list-ul"></i> @L.T("Log Aktivitas", "Activity Log")
+                        </h3>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" @onclick="RefreshLogs">
+                                <i class="bi bi-arrow-clockwise"></i> @L.T("Muat Ulang", "Refresh")
+                            </button>
+                            <select class="form-select d-inline-block w-auto ms-2" @bind="selectedSource" @bind:after="FilterLogs">
+                                <option value="">@L.T("Semua Sumber", "All Sources")</option>
+                                <option value="QuizHost">Host Quiz</option>
+                                <option value="QuizUser">@L.T("Peserta Quiz", "Quiz User")</option>
+                                <option value="QuestionEditor">@L.T("Editor Pertanyaan", "Question Editor")</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">@L.T("Memuat...", "Loading...")</span>
+                            </div>
+                            <p class="mt-2 text-muted">@L.T("Memuat log aktivitas...", "Loading activity log...")</p>
+                        </div>
+                    }
+                    else if (!filteredLogs.Any())
+                    {
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <p class="text-muted">@L.T("Belum ada log aktivitas.", "No activity logs yet.")</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>@L.T("Waktu", "Time")</th>
+                                        <th>@L.T("Tingkat", "Level")</th>
+                                        <th>@L.T("Sumber", "Source")</th>
+                                        <th>@L.T("Aktivitas", "Activity")</th>
+                                        <th>@L.T("Pengguna", "User")</th>
+                                        <th>@L.T("Detail", "Details")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var log in filteredLogs.Take(100))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @log.FormattedCreatedAt
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-@GetLevelColor(log.Level)">
+                                                    @log.Level
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <small class="text-primary">@log.Source</small>
+                                            </td>
+                                            <td>@log.Activity</td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @(string.IsNullOrEmpty(log.UserName) ? "-" : log.UserName)
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @(string.IsNullOrEmpty(log.Details) ? "-" : 
+                                                      (log.Details.Length > 50 ? log.Details.Substring(0, 47) + "..." : log.Details))
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        @if (filteredLogs.Count > 100)
+                        {
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle"></i>
+                                @L.T("Menampilkan 100 entri terbaru dari", "Showing latest 100 entries out of") @filteredLogs.Count @L.T("total log.", "total logs.")
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ActivityLog> allLogs = new List<ActivityLog>();
+    private List<ActivityLog> filteredLogs = new List<ActivityLog>();
+    private string selectedSource = "";
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshLogs();
+    }
+
+    private async Task RefreshLogs()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            allLogs = await ActivityLogService.GetRecentActivitiesAsync(200);
+            FilterLogs();
+        }
+        catch (Exception ex)
+        {
+            // Fallback to console if ActivityLogService fails
+            Console.WriteLine($"Error loading activity logs: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FilterLogs()
+    {
+        if (string.IsNullOrEmpty(selectedSource))
+        {
+            filteredLogs = allLogs;
+        }
+        else
+        {
+            filteredLogs = allLogs.Where(log => log.Source == selectedSource).ToList();
+        }
+        StateHasChanged();
+    }
+
+    private string GetLevelColor(string level)
+    {
+        return level.ToLower() switch
+        {
+            "error" => "danger",
+            "warning" => "warning",
+            "info" => "primary",
+            _ => "secondary"
+        };
+    }
+}

@@ -1,0 +1,51 @@
+﻿@page "/Account/Manage/ResetAuthenticator"
+
+@using Microsoft.AspNetCore.Identity
+@using BlazorQuiz.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<ResetAuthenticator> Logger
+
+<PageTitle>@L.T("Atur ulang kunci autentikator", "Reset authenticator key")</PageTitle>
+
+<StatusMessage />
+<h3>@L.T("Atur ulang kunci autentikator", "Reset authenticator key")</h3>
+<div class="alert alert-warning" role="alert">
+    <p>
+        <span class="glyphicon glyphicon-warning-sign"></span>
+        <strong>@L.T("Jika kunci diatur ulang, aplikasi autentikator tidak berfungsi sampai Anda mengaturnya lagi.", "If you reset your key, your authenticator app will not work until you set it up again.")</strong>
+    </p>
+    <p>
+        @L.T("Proses ini menonaktifkan verifikasi dua langkah sampai aplikasi autentikator diverifikasi. Jika pengaturan tidak diselesaikan, Anda bisa kehilangan akses ke akun.", "This process disables two-factor authentication until you verify your authenticator app. If you do not complete the setup, you may lose access to your account.")
+    </p>
+</div>
+<div>
+    <form @formname="reset-authenticator" @onsubmit="OnSubmitAsync" method="post">
+        <AntiforgeryToken />
+        <button class="btn btn-danger" type="submit">@L.T("Atur ulang kunci autentikator", "Reset authenticator key")</button>
+    </form>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private async Task OnSubmitAsync()
+    {
+        var user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        await UserManager.SetTwoFactorEnabledAsync(user, false);
+        await UserManager.ResetAuthenticatorKeyAsync(user);
+        var userId = await UserManager.GetUserIdAsync(user);
+        Logger.LogInformation("User with ID '{UserId}' has reset their authentication app key.", userId);
+
+        await SignInManager.RefreshSignInAsync(user);
+
+        RedirectManager.RedirectToWithStatus(
+            "Account/Manage/EnableAuthenticator",
+            L.T("Kunci aplikasi autentikator sudah diatur ulang. Atur aplikasi autentikator Anda dengan kunci baru.", "Your authenticator app key has been reset, you will need to configure your authenticator app using the new key."),
+            HttpContext);
+    }
+}

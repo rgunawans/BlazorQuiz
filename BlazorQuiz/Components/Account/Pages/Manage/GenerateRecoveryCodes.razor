@@ -1,0 +1,68 @@
+﻿@page "/Account/Manage/GenerateRecoveryCodes"
+
+@using Microsoft.AspNetCore.Identity
+@using BlazorQuiz.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<GenerateRecoveryCodes> Logger
+
+<PageTitle>@L.T("Buat kode pemulihan verifikasi dua langkah", "Generate 2FA recovery codes")</PageTitle>
+
+@if (recoveryCodes is not null)
+{
+    <ShowRecoveryCodes RecoveryCodes="recoveryCodes.ToArray()" StatusMessage="@message" />
+}
+else
+{
+    <h3>@L.T("Buat kode pemulihan verifikasi dua langkah", "Generate 2FA recovery codes")</h3>
+    <div class="alert alert-warning" role="alert">
+        <p>
+            <span class="glyphicon glyphicon-warning-sign"></span>
+            <strong>@L.T("Simpan kode ini di tempat yang aman.", "Put these codes in a safe place.")</strong>
+        </p>
+        <p>
+            @L.T("Jika perangkat Anda hilang dan Anda tidak punya kode pemulihan, Anda kehilangan akses ke akun.", "If you lose your device and do not have the recovery codes, you will lose access to your account.")
+        </p>
+        <p>
+            @L.T("Membuat kode pemulihan baru tidak mengubah kunci di aplikasi autentikator. Untuk mengganti kunci,", "Generating new recovery codes does not change the keys used in authenticator apps. To change the key,")
+            <a href="Account/Manage/ResetAuthenticator">@L.T("atur ulang kunci autentikator", "reset your authenticator key")</a>.
+        </p>
+    </div>
+    <div>
+        <form @formname="generate-recovery-codes" @onsubmit="OnSubmitAsync" method="post">
+            <AntiforgeryToken />
+            <button class="btn btn-danger" type="submit">@L.T("Buat kode pemulihan", "Generate recovery codes")</button>
+        </form>
+    </div>
+}
+
+@code {
+    private string? message;
+    private ApplicationUser user = default!;
+    private IEnumerable<string>? recoveryCodes;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+
+        var isTwoFactorEnabled = await UserManager.GetTwoFactorEnabledAsync(user);
+        if (!isTwoFactorEnabled)
+        {
+            throw new InvalidOperationException("Cannot generate recovery codes for user because they do not have 2FA enabled.");
+        }
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        var userId = await UserManager.GetUserIdAsync(user);
+        recoveryCodes = await UserManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+        message = L.T("Kode pemulihan baru sudah dibuat.", "New recovery codes have been generated.");
+
+        Logger.LogInformation("User with ID '{UserId}' has generated new 2FA recovery codes.", userId);
+    }
+}

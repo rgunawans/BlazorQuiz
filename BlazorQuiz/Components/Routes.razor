@@ -1,0 +1,32 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@using BlazorQuiz.Components.Account.Shared
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.EmptyLayout)">
+                <Authorizing>
+                    <p>@L.T("Memeriksa sesi, mohon tunggu...", "Determining session state, please wait...")</p>
+                </Authorizing>
+                <NotAuthorized>
+                    @if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        <RedirectToLogin />
+                    }
+                    else
+                    {
+                        <p role="alert">@L.T("Anda tidak memiliki akses ke halaman ini.", "You are not authorized to access this resource.")</p>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>@L.T("Halaman tidak ditemukan", "Page not found")</PageTitle>
+            <LayoutView Layout="typeof(Layout.EmptyLayout)">
+                <p role="alert">@L.T("Maaf, tidak ada halaman di alamat ini.", "Sorry, there's nothing at this address.")</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

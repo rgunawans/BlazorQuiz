@@ -1,0 +1,958 @@
+﻿@page "/quiz-host"
+@page "/quiz-host/{QuizIdParam}"
+@page "/quiz-host/{QuizIdParam}/{SessionCodeParam}"
+@using BlazorQuiz.Models
+@using BlazorQuiz.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@inject NavigationManager Navigation
+@inject IQuizService QuizService
+@inject IQuizEventBus EventBus
+@implements IAsyncDisposable
+@inject IActivityLogService ActivityLogService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Host Quiz</PageTitle>
+
+<div class="container mt-4">
+    <div class="text-end mb-2"><LanguageSwitcher /></div>
+    <div class="row">
+        <!-- Main Quiz Panel -->
+        <div class="col-lg-8">
+            @if (showQuizSelection)
+            {
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h4 class="mb-3"><i class="bi bi-list-task"></i> @L.T("Pilih Quiz untuk di-host", "Choose a Quiz to host")</h4>
+                        @if (availableQuizzes == null)
+                        {
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">@L.T("Memuat...", "Loading...")</span>
+                                </div>
+                                <p class="mt-3">@L.T("Memuat daftar quiz...", "Loading quiz list...")</p>
+                            </div>
+                        }
+                        else if (!availableQuizzes.Any())
+                        {
+                            <div class="alert alert-warning">@L.T("Tidak ada quiz yang tersedia. Silakan buat quiz terlebih dahulu di", "No quizzes available. Please create a quiz first in the") <a href="/quiz-editor">@L.T("Editor Quiz", "Quiz Editor")</a>.</div>
+                        }
+                        else
+                        {
+                            <div class="list-group mb-3">
+                                @foreach (var q in availableQuizzes)
+                                {
+                                    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" @onclick="() => SelectQuiz(q.Id)">
+                                        <span>
+                                            <strong>@q.Title</strong>
+                                            <br />
+                                            <small class="text-muted">@q.Description</small>
+                                        </span>
+                                        <span class="badge bg-primary">@q.Questions.Count @L.T("pertanyaan", "questions")</span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (!quizLoaded)
+            {
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">@L.T("Memuat...", "Loading...")</span>
+                        </div>
+                        <h5>@L.T("Memuat quiz...", "Loading quiz...")</h5>
+                    </div>
+                </div>
+            }
+            else if (quiz == null)
+            {
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
+                        <h4>@L.T("Quiz tidak ditemukan", "Quiz not found")</h4>
+                        <p class="text-muted">@L.T("Quiz yang Anda cari tidak dapat ditemukan atau telah dihapus.", "The quiz you are looking for could not be found or has been deleted.")</p>
+                        <a href="/quiz-editor" class="btn btn-primary">
+                            <i class="bi bi-arrow-left"></i> @L.T("Kembali ke Editor", "Back to Editor")
+                        </a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">
+                                <i class="bi bi-person-video3"></i> Host Quiz
+                            </h3>
+                            @if (quizSession != null)
+                            {
+                                <div>
+                                    <span class="badge bg-primary fs-2 px-3 py-2">@L.T("Kode:", "Code:") @quizSession.SessionCode</span>
+                                </div>
+                            }
+                        </div>
+                        @if (quiz != null)
+                        {
+                            <small class="text-muted">@quiz.Title</small>
+                        }
+                    </div>
+                    <div class="card-body">
+                        @if (!sessionStarted)
+                        {
+                            <!-- Pre-start state: Show setup UI -->
+                            <div class="text-center py-5">
+                                <div class="mb-4">
+                                    <i class="bi bi-play-circle display-1 text-primary"></i>
+                                </div>
+                                <h4>@quiz.Title</h4>
+                                @if (!string.IsNullOrEmpty(quiz.Description))
+                                {
+                                    <p class="text-muted">@quiz.Description</p>
+                                }
+                                <p class="text-muted">Total @quiz.Questions.Count @L.T("pertanyaan siap dimulai", "questions ready to start")</p>
+
+                                @if (quizSession == null)
+                                {
+                                    <button class="btn btn-success btn-lg" type="button" @onclick="CreateSession">
+                                        <i class="bi bi-plus-circle"></i> @L.T("Buat Sesi Quiz", "Create Quiz Session")
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="mb-3">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle"></i>
+                                            @L.T("Sesi quiz telah dibuat. Bagikan kode", "Quiz session created. Share the code") <strong class="fs-2">@quizSession.SessionCode</strong> @L.T("kepada peserta.", "with participants.")
+                                            <br>
+                                            <small class="text-muted">@participants.Count @L.T("peserta telah bergabung", "participants have joined")</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary btn-lg" type="button" @onclick="StartQuiz" disabled="@(participants.Count == 0)">
+                                        <i class="bi bi-play-fill"></i> @L.T("Mulai Quiz", "Start Quiz")
+                                    </button>
+                                    @if (participants.Count == 0)
+                                    {
+                                        <br>
+                                        <small class="text-muted">@L.T("Tunggu setidaknya 1 peserta bergabung", "Wait for at least 1 participant to join")</small>
+                                    }
+                                }
+                            </div>
+                        }
+                        else if (quizCompleted)
+                        {
+                            <!-- Quiz completed state -->
+                            <div class="text-center py-5">
+                                <i class="bi bi-check-circle display-1 text-success mb-3"></i>
+                                <h4>@L.T("Quiz Selesai!", "Quiz Completed!")</h4>
+                                <p class="text-muted">@L.T("Terima kasih telah mengikuti quiz ini.", "Thank you for taking part in this quiz.")</p>
+                                <button class="btn btn-primary" type="button" @onclick="ShowFinalResults">
+                                    <i class="bi bi-trophy"></i> @L.T("Lihat Hasil Akhir", "View Final Results")
+                                </button>
+                            </div>
+                        }
+                        else if (sessionStarted)
+                        {
+                            <!-- Active quiz state - showing question or ready for next -->
+                            @if (currentQuestion != null)
+                            {
+                                <!-- Question display -->
+                                <div class="card border-primary mb-4">
+                                    <div class="card-header bg-primary text-white">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">@L.T("Pertanyaan", "Question") @(currentIndex + 1) @L.T("dari", "of") @quiz.Questions.Count</h5>
+                                            <div class="timer-container">
+                                                <i class="bi bi-clock quiz-timer-icon"></i>
+                                                <span class="quiz-timer @GetTimerClass()">@timeRemaining</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <h4 class="mb-4">@currentQuestion.Text</h4>
+                                        <div class="d-grid gap-3">
+                                            @for (int i = 0; i < currentQuestion.Options.Count; i++)
+                                            {
+                                                var optionIndex = i;
+                                                <div class="btn btn-lg text-start py-3 quiz-option quiz-option-@optionIndex quiz-option-static">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="shape-icon @GetShapeClass(optionIndex)"></div>
+                                                        <span>@currentQuestion.Options[optionIndex]</span>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Next Question Button - ALWAYS show when quiz is active and not completed -->
+                            <div class="d-grid">
+                                <button class="btn @GetNextButtonClass() btn-lg" type="button" @onclick="NextQuestion" disabled="@(!CanAdvanceQuestion())">
+                                    @if (!CanAdvanceQuestion())
+                                    {
+                                        @if (isQuestionFresh)
+                                        {
+                                            <i class="bi bi-play-circle"></i>
+                                            <text>@L.T("Menampilkan pertanyaan...", "Showing question...") (@timeRemaining @L.T("detik", "sec"))</text>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-hourglass-split"></i>
+                                            @if (timeRemaining > 0)
+                                            {
+                                                <text>@L.T("Tunggu waktu habis atau semua peserta menjawab", "Wait for the timer or until everyone answers") (@timeRemaining @L.T("detik", "sec"))</text>
+                                            }
+                                            else
+                                            {
+                                                <text>@L.T("Menunggu respon peserta...", "Waiting for participants...")</text>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @if (!revealAnswerAndScore)
+                                        {
+                                            <i class="bi bi-eye"></i> <text>@L.T("Tampilkan Jawaban & Buka Leaderboard", "Show Answer & Open Leaderboard")</text>
+                                        }
+                                        else if (currentIndex + 1 < quiz.Questions.Count)
+                                        {
+                                            <i class="bi bi-arrow-right"></i> <text>@L.T("Pertanyaan Selanjutnya", "Next Question")</text>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-flag-checkered"></i> <text>@L.T("Selesai Quiz", "Finish Quiz")</text>
+                                        }
+                                    }
+                                </button>
+
+                                @* Additional leaderboard button when answer is revealed *@
+                                @if (revealAnswerAndScore && CanAdvanceQuestion() && quizSession != null)
+                                {
+                                    <button class="btn btn-outline-primary btn-lg mt-2" type="button" @onclick="OpenLeaderboard">
+                                        <i class="bi bi-trophy"></i> @L.T("Buka Leaderboard Manual", "Open Leaderboard Manually")
+                                    </button>
+                                }
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(statusMessage))
+                        {
+                            <div class="alert alert-info" role="alert">
+                                @statusMessage
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Sidebar dengan Peserta -->
+        <div class="col-lg-4">
+            @if (quizSession != null)
+            {
+                <!-- Daftar Peserta -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="bi bi-people"></i> @L.T("Peserta", "Participants") (@participants.Count)
+                        </h6>
+                    </div>
+                    <div class="card-body participant-list">
+                        @if (!participants.Any())
+                        {
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-person-plus display-4 opacity-50"></i>
+                                <p class="mb-0">@L.T("Belum ada peserta", "No participants yet")</p>
+                                <small>@L.T("Bagikan kode sesi:", "Share the session code:") <strong>@quizSession.SessionCode</strong></small>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var participant in participants.OrderBy(p => p.PlayerName))
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="participant-avatar me-2">
+                                                @participant.PlayerName.Substring(0, 1).ToUpper()
+                                            </div>
+                                            <span>@participant.PlayerName</span>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-@(participant.IsActive ? "success" : "secondary")">
+                                                @(participant.IsActive ? "Online" : "Offline")
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? QuizIdParam { get; set; }
+    [Parameter] public string? SessionCodeParam { get; set; }
+
+    private Quiz? quiz;
+    private QuizSession? quizSession;
+    private int currentIndex = -1;
+    private Question? currentQuestion;
+    private IDisposable? eventSubscription;
+    private bool disposed;
+    private List<QuestionLeaderboardEntry> leaderboard = new();
+    private List<LeaderboardEntry> overallLeaderboard = new();
+    private List<QuizParticipant> participants = new();
+    private DateTime questionStartTime;
+    private string statusMessage = string.Empty;
+    private Timer? countdownTimer;
+    private Timer? participantRefreshTimer;
+    private int timeRemaining = 15; // Changed from 5 to 15 seconds per question
+    private bool sessionStarted = false;
+    private bool quizCompleted = false;
+    private bool quizLoaded = false;
+    private bool isInitialized = false;
+
+    // New fields for quiz selection
+    private bool showQuizSelection = false;
+    private List<Quiz>? availableQuizzes;
+
+    // Additional tracking
+    private int answeredParticipants = 0;
+    private int timeoutParticipants = 0;
+    private bool canAutoAdvance = false;
+    private List<string> timeoutNotifications = new();
+    private bool isQuestionFresh = false;
+    private bool revealAnswerAndScore = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (isInitialized) return;
+        isInitialized = true;
+
+        try
+        {
+            await ActivityLogService.LogActivityAsync("QuizHost initialized", "Quiz host component starting", "Info", source: "QuizHost");
+
+            // BARU: Check if we have SessionCodeParam (coming from Leaderboard)
+            if (!string.IsNullOrEmpty(SessionCodeParam))
+            {
+                await LoadExistingSession();
+                return;
+            }
+
+            if (string.IsNullOrEmpty(QuizIdParam) || !int.TryParse(QuizIdParam, out int parsedQuizId))
+            {
+                showQuizSelection = true;
+                availableQuizzes = await QuizService.GetAllQuizzesAsync();
+                StateHasChanged();
+                return;
+            }
+
+            quiz = await QuizService.GetQuizByIdAsync(parsedQuizId);
+
+            if (quiz == null)
+            {
+                statusMessage = L.T("Quiz tidak ditemukan.", "Quiz not found.");
+                await ActivityLogService.LogActivityAsync("Quiz not found", $"Quiz ID: {parsedQuizId}", "Warning", source: "QuizHost");
+            }
+            else
+            {
+                await ActivityLogService.LogActivityAsync("Quiz loaded by ID", $"Quiz ID: {parsedQuizId}, Title: {quiz.Title}", "Info", source: "QuizHost");
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("QuizHost initialization error", ex.Message, "Error", source: "QuizHost");
+            statusMessage = L.T($"Error memuat quiz: {ex.Message}", $"Error loading quiz: {ex.Message}");
+        }
+        finally
+        {
+            quizLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    // BARU: Method untuk load existing session
+    private async Task LoadExistingSession()
+    {
+        try
+        {
+            quizSession = await QuizService.GetActiveQuizSessionAsync(SessionCodeParam);
+
+            if (quizSession == null)
+            {
+                statusMessage = L.T("Sesi quiz tidak ditemukan atau sudah tidak aktif.", "Quiz session not found or no longer active.");
+                await ActivityLogService.LogActivityAsync("Session not found", $"Session Code: {SessionCodeParam}", "Warning", source: "QuizHost");
+                quizLoaded = true;
+                StateHasChanged();
+                return;
+            }
+
+            quiz = quizSession.Quiz;
+
+            if (quiz == null)
+            {
+                statusMessage = L.T("Quiz dari sesi tidak dapat dimuat.", "The quiz of this session could not be loaded.");
+                await ActivityLogService.LogActivityAsync("Quiz not loaded from session", $"Session Code: {SessionCodeParam}", "Warning", source: "QuizHost");
+                quizLoaded = true;
+                StateHasChanged();
+                return;
+            }
+
+            // Load session state
+            sessionStarted = quizSession.IsActive;
+            currentIndex = quizSession.CurrentQuestionIndex;
+            participants = await QuizService.GetParticipantsAsync(quizSession.Id);
+
+            // Debug log untuk memastikan nilai currentIndex
+            await ActivityLogService.LogActivityAsync("Debug currentIndex", $"CurrentQuestionIndex from DB: {currentIndex}, Total questions: {quiz.Questions.Count}", "Info", source: "QuizHost");
+
+            // Set current question if quiz is in progress
+            if (sessionStarted && currentIndex >= 0 && currentIndex < quiz.Questions.Count)
+            {
+                currentQuestion = quiz.Questions[currentIndex];
+
+                // Start fresh timer for current question
+                timeRemaining = 15; // Changed from 5 to 15 seconds
+                isQuestionFresh = true;
+                revealAnswerAndScore = false;
+
+                // Reset question-specific state
+                leaderboard.Clear();
+                answeredParticipants = 0;
+                timeoutParticipants = 0;
+                canAutoAdvance = false;
+                timeoutNotifications.Clear();
+
+                statusMessage = L.T($"Melanjutkan pertanyaan {currentIndex + 1} dari {quiz.Questions.Count}", $"Resuming question {currentIndex + 1} of {quiz.Questions.Count}");
+            }
+            else if (sessionStarted && currentIndex >= quiz.Questions.Count)
+            {
+                // Quiz completed
+                quizCompleted = true;
+                currentQuestion = null;
+                statusMessage = L.T("Quiz telah selesai!", "The quiz is finished!");
+            }
+            else if (!sessionStarted)
+            {
+                currentIndex = -1;
+                currentQuestion = null;
+                statusMessage = L.T($"Sesi quiz ditemukan: {quiz.Title}. Siap untuk melanjutkan.", $"Quiz session found: {quiz.Title}. Ready to continue.");
+            }
+            else
+            {
+                // Edge case: session is started but currentIndex is invalid
+                await ActivityLogService.LogActivityAsync("Invalid state detected", $"SessionStarted: {sessionStarted}, CurrentIndex: {currentIndex}, QuestionCount: {quiz.Questions.Count}", "Warning", source: "QuizHost");
+
+                // Try to fix by checking the most recent question answered
+                using (var context = await QuizService.GetDbContextAsync())
+                {
+                    var lastQuestionAnswered = await context.QuizAnswers
+                        .Where(qa => qa.QuizSessionId == quizSession.Id)
+                        .OrderByDescending(qa => qa.AnsweredAt)
+                        .FirstOrDefaultAsync();
+
+                    if (lastQuestionAnswered != null)
+                    {
+                        // Find the question index
+                        var lastQuestion = quiz.Questions.FirstOrDefault(q => q.Id == lastQuestionAnswered.QuestionId);
+                        if (lastQuestion != null)
+                        {
+                            currentIndex = quiz.Questions.IndexOf(lastQuestion);
+                            await ActivityLogService.LogActivityAsync("Fixed currentIndex", $"Set currentIndex to: {currentIndex} based on last answered question", "Info", source: "QuizHost");
+
+                            // Update database with corrected index
+                            var session = await context.QuizSessions.FindAsync(quizSession.Id);
+                            if (session != null)
+                            {
+                                session.CurrentQuestionIndex = currentIndex;
+                                await context.SaveChangesAsync();
+                            }
+                        }
+                    }
+                }
+
+                statusMessage = L.T($"State diperbaiki. Melanjutkan dari pertanyaan {currentIndex + 1}.", $"State repaired. Continuing from question {currentIndex + 1}.");
+            }
+
+            SubscribeToEvents();
+
+            // Start participant refresh
+            if (sessionStarted)
+            {
+                // TIMER REMOVED TO PREVENT DB OVERLOAD
+
+                // BARU: Start timer if current question is active
+                if (currentQuestion != null)
+                {
+                    countdownTimer = new Timer(UpdateTimer, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+                }
+            }
+
+            await ActivityLogService.LogActivityAsync("Existing session loaded", $"Quiz: {quiz.Title}, Session: {SessionCodeParam}, Index: {currentIndex}", "Info", source: "QuizHost");
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Load existing session error", ex.Message, "Error", source: "QuizHost");
+            statusMessage = L.T($"Error memuat sesi: {ex.Message}", $"Error loading session: {ex.Message}");
+        }
+    }
+
+    // The pending "next question" from the leaderboard must only be consumed by the interactive instance:
+    // OnInitializedAsync also runs during prerendering, where side effects and NavigateTo are lost.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || disposed || quizSession == null || !sessionStarted || quizCompleted) return;
+        if (!EventBus.ConsumeNextQuestionRequest(quizSession.Id)) return;
+
+        isQuestionFresh = false;
+        revealAnswerAndScore = true; // the leaderboard already showed the reveal
+        canAutoAdvance = true;
+        timeRemaining = 0;
+        countdownTimer?.Dispose();
+        await NextQuestion();
+    }
+
+    private void SubscribeToEvents()
+    {
+        eventSubscription?.Dispose();
+        eventSubscription = null;
+        if (quizSession == null) return;
+
+        eventSubscription = EventBus.Subscribe(quizSession.Id, OnQuizEvent);
+        statusMessage = L.T("Quiz siap!", "Quiz ready!");
+    }
+
+    private Task OnQuizEvent(QuizEvent e)
+    {
+        if (disposed) return Task.CompletedTask;
+        return InvokeAsync(async () =>
+        {
+            if (disposed) return;
+            try
+            {
+                switch (e.Type)
+                {
+                    case QuizEventType.ScoreboardUpdated:
+                        leaderboard.Add(new QuestionLeaderboardEntry
+                        {
+                            UserName = e.PlayerName ?? string.Empty,
+                            TimeTaken = e.TimeTaken,
+                            IsCorrect = e.IsCorrect,
+                            Points = e.Points
+                        });
+                        leaderboard = leaderboard.OrderBy(x => x.TimeTaken).ToList();
+
+                        answeredParticipants++;
+                        CheckAutoAdvance();
+                        StateHasChanged();
+                        break;
+
+                    case QuizEventType.ParticipantTimeout:
+                        timeoutNotifications.Add(L.T($"{e.PlayerName} tidak menjawab dalam waktu yang ditentukan", $"{e.PlayerName} did not answer in time"));
+                        timeoutParticipants++;
+                        CheckAutoAdvance();
+                        StateHasChanged();
+                        break;
+
+                    case QuizEventType.ParticipantJoined:
+                        statusMessage = L.T($"{e.PlayerName} bergabung ke quiz!", $"{e.PlayerName} joined the quiz!");
+                        await RefreshParticipants();
+                        StateHasChanged();
+                        break;
+
+                    case QuizEventType.NextQuestionRequested:
+                        EventBus.ConsumeNextQuestionRequest(e.SessionId); // handled live, so a reload must not repeat it
+                        if (CanAdvanceQuestion())
+                        {
+                            await NextQuestion();
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                await ActivityLogService.LogActivityAsync("Host event handler error", $"{e.Type}: {ex.Message}", "Error", source: "QuizHost");
+            }
+        });
+    }
+
+    private async Task CreateSession()
+    {
+        try
+        {
+            if (quiz == null) return;
+
+            statusMessage = L.T("Membuat sesi quiz...", "Creating quiz session...");
+            StateHasChanged();
+
+            string hostUserId = "host-user-" + Guid.NewGuid().ToString()[..8];
+
+            quizSession = await QuizService.CreateQuizSessionAsync(quiz.Id, hostUserId);
+            SubscribeToEvents();
+            statusMessage = L.T($"Sesi quiz berhasil dibuat dengan kode: {quizSession.SessionCode}", $"Quiz session created with code: {quizSession.SessionCode}");
+
+            // TIMER REMOVED TO PREVENT DB OVERLOAD
+
+            await ActivityLogService.LogActivityAsync("Quiz session created", $"Quiz: {quiz.Title}, Session Code: {quizSession.SessionCode}", "Info", source: "QuizHost");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Session creation error", $"Quiz: {quiz?.Title}, Error: {ex.Message}", "Error", source: "QuizHost");
+            statusMessage = L.T($"Error membuat sesi: {ex.Message}", $"Error creating session: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshParticipants()
+    {
+        try
+        {
+            if (quizSession != null)
+            {
+                participants = await QuizService.GetParticipantsAsync(quizSession.Id);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Participant refresh error", ex.Message, "Error", source: "QuizHost");
+        }
+    }
+
+    private async Task RefreshOverallLeaderboard()
+    {
+        try
+        {
+            if (quizSession != null)
+            {
+                overallLeaderboard = await QuizService.GetLeaderboardAsync(quizSession.Id);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Leaderboard refresh error", ex.Message, "Error", source: "QuizHost");
+        }
+    }
+
+    private async Task StartQuiz()
+    {
+        try
+        {
+            if (quiz == null || quiz.Questions.Count == 0) return;
+
+            await ActivityLogService.LogActivityAsync("Quiz started", $"Quiz: {quiz.Title}, Participants: {participants.Count}", "Info", source: "QuizHost");
+            sessionStarted = true;
+            statusMessage = L.T("Mempersiapkan pertanyaan pertama...", "Preparing the first question...");
+
+            participantRefreshTimer?.Dispose();
+
+            StateHasChanged();
+
+            await NextQuestion();
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Quiz start error", ex.Message, "Error", source: "QuizHost");
+            statusMessage = L.T($"Error memulai quiz: {ex.Message}", $"Error starting quiz: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+
+    private void CheckAutoAdvance()
+    {
+        var totalResponses = answeredParticipants + timeoutParticipants;
+        if (totalResponses >= participants.Count && participants.Count > 0)
+        {
+            canAutoAdvance = true;
+            isQuestionFresh = false;
+            statusMessage = L.T("Semua peserta sudah merespon! Siap untuk pertanyaan berikutnya.", "Everyone has responded! Ready for the next question.");
+        }
+    }
+
+    private bool CanAdvanceQuestion()
+    {
+        if (isQuestionFresh)
+        {
+            return false;
+        }
+
+        return timeRemaining <= 0 || canAutoAdvance;
+    }
+
+    private string GetNextButtonClass()
+    {
+        return CanAdvanceQuestion() ? "btn-primary" : "btn-secondary";
+    }
+
+    private async Task NextQuestion()
+    {
+        try
+        {
+            if (quiz == null || quiz.Questions == null) return;
+
+            if (!CanAdvanceQuestion() && currentIndex >= 0)
+            {
+                statusMessage = L.T("Tunggu sampai waktu habis atau semua peserta menjawab sebelum melanjutkan.", "Wait until time is up or everyone has answered before continuing.");
+                StateHasChanged();
+                return;
+            }
+
+            // If answer and score not revealed yet, reveal them first and open leaderboard
+            if (!revealAnswerAndScore && currentIndex >= 0 && !quizCompleted)
+            {
+
+                revealAnswerAndScore = true;
+                statusMessage = L.T("Menampilkan jawaban benar dan skor peserta. Membuka leaderboard...", "Showing the correct answer and scores. Opening leaderboard...");
+
+                // Kirim event SignalR ke peserta untuk reveal jawaban
+                if (quizSession != null)
+                {
+                    await EventBus.PublishAsync(new QuizEvent { Type = QuizEventType.RevealAnswer, SessionId = quizSession.Id });
+                }
+
+                StateHasChanged();
+
+                // Buka halaman leaderboard di halaman yang sama
+                if (quizSession != null)
+                {
+                    var leaderboardUrl = $"/leaderboard/{quizSession.SessionCode}";
+                    await Task.Delay(500); // Small delay to ensure SignalR message is sent
+                    Navigation.NavigateTo(leaderboardUrl);
+                    await ActivityLogService.LogActivityAsync("Leaderboard opened", $"Session: {quizSession.SessionCode}", "Info", source: "QuizHost");
+                }
+
+                return;
+            }
+
+            // Reset reveal state for next question
+            revealAnswerAndScore = false;
+
+            // Stop current timer
+            countdownTimer?.Dispose();
+
+            // currentIndex++ moved above for reveal/leaderboard case
+            // Only increment here if not already incremented
+            if (!quizCompleted && currentIndex < quiz.Questions.Count)
+            {
+                currentIndex++;
+            }
+
+            // BARU: Update CurrentQuestionIndex in database session
+            if (quizSession != null)
+            {
+                using (var context = await QuizService.GetDbContextAsync())
+                {
+                    var session = await context.QuizSessions.FindAsync(quizSession.Id);
+                    if (session != null)
+                    {
+                        session.CurrentQuestionIndex = currentIndex;
+                        await context.SaveChangesAsync();
+                    }
+                }
+            }
+
+            if (currentIndex >= quiz.Questions.Count)
+            {
+                // Quiz completed - also open final leaderboard
+                quizCompleted = true;
+                currentQuestion = null;
+                statusMessage = L.T("Quiz telah selesai!", "The quiz is finished!");
+                await RefreshOverallLeaderboard();
+
+                // Set session inactive in DB
+                if (quizSession != null)
+                {
+                    using (var context = await QuizService.GetDbContextAsync())
+                    {
+                        var session = await context.QuizSessions.FindAsync(quizSession.Id);
+                        if (session != null)
+                        {
+                            session.IsActive = false;
+                            session.EndedAt = DateTime.UtcNow;
+                            await context.SaveChangesAsync();
+                        }
+                    }
+
+                }
+
+                // Notify all participants that quiz is completed
+                if (quizSession != null)
+                {
+                    await EventBus.PublishAsync(new QuizEvent { Type = QuizEventType.QuizCompleted, SessionId = quizSession.Id });
+                    await EventBus.PublishAsync(new QuizEvent
+                    {
+                        Type = QuizEventType.StatusUpdate,
+                        SessionId = quizSession.Id,
+                        CurrentQuestionNumber = currentIndex,
+                        TotalQuestions = quiz.Questions.Count,
+                        Completed = true
+                    });
+                }
+
+                await ActivityLogService.LogActivityAsync("Quiz completed", $"Quiz: {quiz.Title}, Total participants: {participants.Count}", "Info", source: "QuizHost");
+
+                // Open final leaderboard only after every participant was notified (NavigateTo ends this component)
+                if (quizSession != null)
+                {
+                    await ActivityLogService.LogActivityAsync("Final leaderboard opened", $"Session: {quizSession.SessionCode}", "Info", source: "QuizHost");
+                    Navigation.NavigateTo($"/leaderboard/{quizSession.SessionCode}");
+                }
+                StateHasChanged();
+                return;
+            }
+
+            currentQuestion = quiz.Questions[currentIndex];
+            questionStartTime = DateTime.UtcNow;
+            timeRemaining = 15; // Changed from 5 to 15 seconds
+            leaderboard.Clear();
+            answeredParticipants = 0;
+            timeoutParticipants = 0;
+            canAutoAdvance = false;
+            timeoutNotifications.Clear();
+            isQuestionFresh = true;
+
+            // Start countdown timer
+            countdownTimer = new Timer(UpdateTimer, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+            if (quizSession != null)
+            {
+                // Server-side clock for scoring starts here, before anyone can see the question
+                EventBus.StartQuestion(quizSession.Id, currentQuestion.Id);
+                await EventBus.PublishAsync(new QuizEvent
+                {
+                    Type = QuizEventType.Question,
+                    SessionId = quizSession.Id,
+                    Question = QuestionDto.FromQuestion(currentQuestion)
+                });
+                await EventBus.PublishAsync(new QuizEvent
+                {
+                    Type = QuizEventType.StatusUpdate,
+                    SessionId = quizSession.Id,
+                    CurrentQuestionNumber = currentIndex + 1,
+                    TotalQuestions = quiz.Questions.Count,
+                    Completed = false
+                });
+            }
+
+            if (currentIndex == 0)
+            {
+                statusMessage = L.T("Quiz dimulai! Menampilkan pertanyaan pertama kepada peserta...", "Quiz started! Showing the first question to participants...");
+            }
+            else
+            {
+                statusMessage = L.T($"Menampilkan pertanyaan {currentIndex + 1} dari {quiz.Questions.Count}", $"Showing question {currentIndex + 1} of {quiz.Questions.Count}");
+            }
+
+            StateHasChanged();
+            await ActivityLogService.LogActivityAsync("Question displayed", $"Question {currentIndex + 1}: {currentQuestion.Text.Substring(0, Math.Min(50, currentQuestion.Text.Length))}...", "Info", source: "QuizHost");
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Next question error", ex.Message, "Error", source: "QuizHost");
+            statusMessage = $"Error: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateTimer(object? state)
+    {
+        if (disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (disposed) return;
+            if (timeRemaining > 0)
+            {
+                timeRemaining--;
+
+                if (timeRemaining <= 7 && isQuestionFresh)
+                {
+                    isQuestionFresh = false;
+                }
+
+                StateHasChanged();
+            }
+            else
+            {
+                countdownTimer?.Dispose();
+                isQuestionFresh = false;
+                statusMessage = L.T("Waktu habis! Anda dapat melanjutkan ke pertanyaan berikutnya.", "Time's up! You can continue to the next question.");
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task ShowFinalResults()
+    {
+        try
+        {
+            await RefreshOverallLeaderboard();
+            statusMessage = L.T($"Quiz selesai! Total {overallLeaderboard.Count} peserta berpartisipasi.", $"Quiz finished! {overallLeaderboard.Count} participants took part.");
+            await ActivityLogService.LogActivityAsync("Final results shown", $"Total participants: {overallLeaderboard.Count}", "Info", source: "QuizHost");
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Show final results error", ex.Message, "Error", source: "QuizHost");
+            statusMessage = L.T($"Error menampilkan hasil: {ex.Message}", $"Error showing results: {ex.Message}");
+        }
+        StateHasChanged();
+    }
+
+    private async Task OpenLeaderboard()
+    {
+        if (quizSession != null)
+        {
+            var leaderboardUrl = $"/leaderboard/{quizSession.SessionCode}";
+            Navigation.NavigateTo(leaderboardUrl);
+            await ActivityLogService.LogActivityAsync("Leaderboard opened manually", $"Session: {quizSession.SessionCode}", "Info", source: "QuizHost");
+        }
+    }
+
+    private async Task SelectQuiz(int quizId)
+    {
+        Navigation.NavigateTo($"/quiz-host/{quizId}");
+    }
+
+        private string GetShapeClass(int optionIndex)
+    {
+        return optionIndex switch
+        {
+            0 => "shape-triangle",
+            1 => "shape-diamond",
+            2 => "shape-circle",
+            3 => "shape-square",
+            _ => "shape-circle"
+        };
+    }
+
+    private string GetTimerClass()
+    {
+        if (timeRemaining <= 3)
+            return "timer-danger";
+        else if (timeRemaining <= 5)
+            return "timer-warning";
+        else
+            return "timer-normal";
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        disposed = true;
+        countdownTimer?.Dispose();
+        participantRefreshTimer?.Dispose();
+        eventSubscription?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

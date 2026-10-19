@@ -1,0 +1,588 @@
+/* Ynex-style theme. Token names keep the old "kahoot" prefix so existing pages and scoped CSS keep working. */
+:root {
+    --ynex-primary: #845adf;
+    --ynex-primary-dark: #6b43c7;
+    --ynex-primary-tint: #efe9fb;
+    --ynex-sidebar: #111c43;
+    --ynex-sidebar-text: #b9c0d8;
+    --ynex-border: #e9ebf3;
+    --kahoot-red: #d9432f;
+    --kahoot-red-shadow: #b0321f;
+    --kahoot-blue: #2f6fe0;
+    --kahoot-blue-shadow: #2356b3;
+    --kahoot-yellow: #f5b849;
+    --kahoot-yellow-shadow: #c99320;
+    --kahoot-green: #178a68;
+    --kahoot-green-shadow: #0f6a50;
+    --kahoot-bg: #f3f4f9;
+    --kahoot-card: #ffffff;
+    --kahoot-text: #2b2f3a;
+    --kahoot-muted: #5f6676;
+    --kahoot-border: #e9ebf3;
+    --kahoot-track: #e6e8f0;
+    --kahoot-accent-tint: #efe9fb;
+    /* Medal colors encode the top-3 rank hierarchy. */
+    --medal-gold: #ffd700;
+    --medal-silver: #c0c0c0;
+    --medal-bronze: #cd7f32;
+}
+
+body {
+    background-color: var(--kahoot-bg);
+    font-family: 'Poppins', sans-serif;
+    color: var(--kahoot-text);
+    overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+}
+
+/* Ynex shell: dark sidebar, white header, soft content area. */
+.ynex-app { min-height: 100vh; }
+
+.ynex-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 15rem;
+    background: var(--ynex-sidebar);
+    color: var(--ynex-sidebar-text);
+    z-index: 1040;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    transition: transform 0.2s;
+}
+
+.ynex-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    height: 4rem;
+    padding: 0 1.25rem;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1.15rem;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ynex-brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: var(--ynex-primary);
+    color: #fff;
+}
+
+.ynex-menu { padding: 1rem 0.75rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.ynex-menu-title {
+    padding: 1rem 0.75rem 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #8c94b3;
+}
+.ynex-menu-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    color: var(--ynex-sidebar-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.ynex-menu-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.ynex-menu-link.active { background: var(--ynex-primary); color: #fff; }
+.ynex-menu-link i { font-size: 1.05rem; }
+
+.ynex-main { margin-left: 15rem; min-height: 100vh; display: flex; flex-direction: column; }
+
+.ynex-header {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0 1.5rem;
+    background: #fff;
+    border-bottom: 1px solid var(--ynex-border);
+}
+.ynex-header-end { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; }
+.ynex-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    border-radius: 0.5rem;
+    background: var(--ynex-primary-tint);
+    color: var(--ynex-primary);
+    font-size: 1.5rem;
+}
+.ynex-user { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; color: var(--kahoot-text); text-decoration: none; font-weight: 500; }
+.ynex-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--ynex-primary-tint);
+    color: var(--ynex-primary);
+}
+
+.ynex-content { flex: 1; padding: 1.5rem; }
+.ynex-backdrop { display: none; }
+
+@media (max-width: 991.98px) {
+    .ynex-sidebar { transform: translateX(-100%); }
+    .ynex-main { margin-left: 0; }
+    .ynex-toggle { display: inline-flex; }
+    .ynex-header { padding: 0 1rem; }
+    .ynex-content { padding: 1rem; }
+    body.ynex-sidebar-open .ynex-sidebar { transform: none; }
+    body.ynex-sidebar-open .ynex-backdrop { display: block; position: fixed; inset: 0; background: rgba(17, 28, 67, 0.5); z-index: 1035; }
+}
+
+/* Card Styling */
+.card {
+    border-radius: 0.5rem;
+    border: 1px solid var(--ynex-border);
+    background-color: var(--kahoot-card);
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.25rem 1rem rgba(17, 28, 67, 0.05);
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--ynex-border);
+    font-weight: 600;
+    font-size: 1.05rem;
+    padding: 1rem 1.25rem;
+}
+
+/* General Buttons: flat Ynex style. */
+.btn {
+    font-weight: 500;
+    border-radius: 0.5rem;
+    padding: 0.55rem 1.25rem;
+    border: none;
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+.btn-primary {
+    background-color: var(--ynex-primary);
+    color: #ffffff;
+}
+
+.btn-primary:hover, .btn-primary:active, .btn-primary:focus {
+    background-color: var(--ynex-primary-dark);
+    color: #ffffff;
+}
+
+/* Kahoot Options */
+.quiz-option {
+    border-radius: 8px;
+    color: white;
+    font-weight: 800;
+    font-size: 1.5rem;
+    padding: 20px;
+    margin-bottom: 15px;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s, opacity 0.3s;
+    font-family: 'Poppins', sans-serif;
+}
+
+.quiz-option:hover {
+    filter: brightness(1.1);
+    color: white;
+}
+
+.quiz-option:active {
+    transform: translateY(6px);
+}
+
+.quiz-option-0 {
+    --opt-bg: var(--kahoot-red);
+    background-color: var(--kahoot-red);
+    box-shadow: 0 6px 0 var(--kahoot-red-shadow);
+}
+.quiz-option-0:active { box-shadow: 0 0 0 var(--kahoot-red-shadow); }
+
+.quiz-option-1 {
+    --opt-bg: var(--kahoot-blue);
+    background-color: var(--kahoot-blue);
+    box-shadow: 0 6px 0 var(--kahoot-blue-shadow);
+}
+.quiz-option-1:active { box-shadow: 0 0 0 var(--kahoot-blue-shadow); }
+
+.quiz-option-2 {
+    --opt-bg: var(--kahoot-yellow);
+    background-color: var(--kahoot-yellow);
+    color: var(--kahoot-text);
+    box-shadow: 0 6px 0 var(--kahoot-yellow-shadow);
+}
+.quiz-option-2:active { box-shadow: 0 0 0 var(--kahoot-yellow-shadow); }
+
+.quiz-option-3 {
+    --opt-bg: var(--kahoot-green);
+    background-color: var(--kahoot-green);
+    box-shadow: 0 6px 0 var(--kahoot-green-shadow);
+}
+.quiz-option-3:active { box-shadow: 0 0 0 var(--kahoot-green-shadow); }
+
+/* Shape icons inside options */
+.shape-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 45px;
+    height: 45px;
+    margin-right: 15px;
+}
+
+.shape-triangle {
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-bottom: 35px solid white;
+}
+
+.shape-diamond {
+    width: 30px;
+    height: 30px;
+    background-color: white;
+    transform: rotate(45deg);
+}
+
+.shape-circle {
+    width: 35px;
+    height: 35px;
+    background-color: white;
+    border-radius: 50%;
+}
+
+.shape-square {
+    width: 35px;
+    height: 35px;
+    background-color: white;
+}
+
+/* Timer */
+.quiz-timer {
+    font-size: 3rem;
+    font-weight: 800;
+    background-color: #864cbf; /* Kahoot purple timer */
+    color: white;
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px auto;
+    font-family: 'Poppins', sans-serif;
+}
+
+.timer-danger {
+    background-color: var(--kahoot-red);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Option States */
+/* Unselected options are faded by lightening the background, not the whole element, so the text keeps its contrast. */
+.quiz-option.fade-out {
+    background-color: color-mix(in srgb, var(--opt-bg) 30%, white);
+    color: var(--kahoot-text);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+    transform: translateY(4px);
+    cursor: not-allowed;
+}
+
+.quiz-option-correct {
+    background-color: var(--kahoot-green) !important;
+    box-shadow: 0 6px 0 var(--kahoot-green-shadow) !important;
+    opacity: 1 !important;
+    animation: bounce 0.5s;
+}
+
+.quiz-option-wrong {
+    background-color: var(--kahoot-red) !important;
+    box-shadow: 0 6px 0 var(--kahoot-red-shadow) !important;
+    opacity: 1 !important;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+    40% {transform: translateY(-20px);}
+    60% {transform: translateY(-10px);}
+}
+
+/* Host View Enhancements */
+.host-question-text {
+    font-size: 2.5rem;
+    font-weight: 800;
+    text-align: center;
+    padding: 30px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--kahoot-border);
+    margin-bottom: 40px;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 20px;
+    background: white;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1.25rem;
+    border: 1px solid var(--kahoot-border);
+}
+
+.leaderboard-rank-1 { background-color: var(--medal-gold); color: #000; }
+.leaderboard-rank-2 { background-color: var(--medal-silver); color: #000; }
+.leaderboard-rank-3 { background-color: var(--medal-bronze); color: #000; }
+
+/* Misc */
+.text-primary { color: var(--ynex-primary) !important; }
+/* Text colors darkened to reach WCAG AA (4.5:1) on the #f2f2f2 page background */
+.text-muted { color: var(--kahoot-muted) !important; }
+.text-info { color: var(--kahoot-blue) !important; }
+.text-warning { color: #7a5a00 !important; }
+.text-success { color: var(--kahoot-green-shadow) !important; }
+.text-danger { color: var(--kahoot-red-shadow) !important; }
+.text-secondary { color: #5c5c5c !important; }
+.bg-primary { background-color: var(--ynex-primary) !important; }
+
+/* Blazor Error UI */
+#blazor-error-ui {
+    background-color: var(--kahoot-red);
+    color: white;
+    bottom: 0;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+    display: none;
+    left: 0;
+    padding: 1rem 2rem;
+    position: fixed;
+    width: 100%;
+    z-index: 9999;
+    text-align: center;
+    font-weight: 700;
+}
+
+#blazor-error-ui a.reload {
+    color: white;
+    text-decoration: underline;
+    margin-left: 10px;
+}
+
+#blazor-error-ui .dismiss {
+    background: none;
+    border: 0;
+    font-size: 1.75rem;
+    line-height: 1;
+    min-width: 44px;
+    min-height: 44px;
+    cursor: pointer;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+}
+
+/* Minimum 44px touch targets */
+.navbar-brand,
+.navbar-toggler,
+.nav-link,
+.form-control,
+.form-select,
+.btn-sm {
+    min-height: 44px;
+}
+.navbar-brand,
+.navbar-toggler,
+.nav-link,
+.btn-sm {
+    display: inline-flex;
+    align-items: center;
+}
+.navbar-toggler { min-width: 44px; justify-content: center; }
+
+/* One palette: dark neutral (primary) + the four answer colors; blue is the accent (info). */
+:root {
+    --bs-primary: #845adf;
+    --bs-primary-rgb: 132, 90, 223;
+    --bs-link-color: var(--ynex-primary);
+    --bs-link-color-rgb: 132, 90, 223;
+    --bs-link-hover-color: var(--ynex-primary-dark);
+    --bs-info: var(--kahoot-blue);
+    --bs-info-rgb: 47, 111, 224;
+    --bs-success: var(--kahoot-green);
+    --bs-success-rgb: 23, 138, 104;
+    --bs-danger: var(--kahoot-red);
+    --bs-danger-rgb: 217, 67, 47;
+}
+.btn-info, .btn-success, .btn-danger, .btn-warning {
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-active-border-color: transparent;
+}
+.btn-info { --bs-btn-bg: var(--kahoot-blue); --bs-btn-hover-bg: var(--kahoot-blue-shadow); --bs-btn-active-bg: var(--kahoot-blue-shadow); --bs-btn-disabled-bg: var(--kahoot-blue); }
+.btn-success { --bs-btn-bg: var(--kahoot-green); --bs-btn-hover-bg: var(--kahoot-green-shadow); --bs-btn-active-bg: var(--kahoot-green-shadow); --bs-btn-disabled-bg: var(--kahoot-green); }
+.btn-danger { --bs-btn-bg: var(--kahoot-red); --bs-btn-hover-bg: var(--kahoot-red-shadow); --bs-btn-active-bg: var(--kahoot-red-shadow); --bs-btn-disabled-bg: var(--kahoot-red); }
+.btn-warning { --bs-btn-color: var(--kahoot-text); --bs-btn-hover-color: var(--kahoot-text); --bs-btn-active-color: var(--kahoot-text); --bs-btn-bg: var(--kahoot-yellow); --bs-btn-hover-bg: var(--kahoot-yellow-shadow); --bs-btn-active-bg: var(--kahoot-yellow-shadow); }
+.btn-info:active, .btn-success:active, .btn-danger:active, .btn-warning:active { box-shadow: 0 0 0 transparent; }
+.home-join { border-width: 2px; }
+
+.home-join-form { max-width: 360px; margin: 0 auto; }
+
+/* Motion is feedback only (timer urgency, correct answer); drop it when the user asks for less. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Finish-screen banners. Medals use dark text on the medal color; other tiers are white cards with a colored edge. */
+.achievement-banner {
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+    background-color: var(--kahoot-card);
+    border: 1px solid var(--kahoot-border);
+    border-left: 6px solid var(--kahoot-text);
+}
+.winner-gold, .winner-silver, .winner-bronze { color: #1f1f1f; border-color: transparent; }
+.winner-gold { background-color: var(--medal-gold); }
+.winner-silver { background-color: var(--medal-silver); }
+.winner-bronze { background-color: var(--medal-bronze); }
+.top-five { border-left-color: var(--kahoot-blue); }
+.perfect-score, .good-score { border-left-color: var(--kahoot-green); }
+.good-effort { border-left-color: var(--kahoot-yellow); }
+
+/* Visible keyboard focus. Hard button shadows would otherwise hide Bootstrap's focus ring. */
+.btn:focus-visible,
+.btn-check:focus-visible + .btn,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.quiz-option:focus-visible,
+.nav-link:focus-visible,
+.navbar-brand:focus-visible,
+.navbar-toggler:focus-visible,
+a:focus-visible,
+button:focus-visible {
+    outline: 3px solid var(--ynex-primary);
+    outline-offset: 2px;
+}
+
+/* Bootstrap hardcodes outline-info and btn-link colors; point them at the accent blue. */
+.btn-link { --bs-btn-color: var(--kahoot-blue); --bs-btn-hover-color: var(--kahoot-blue-shadow); --bs-btn-active-color: var(--kahoot-blue-shadow); }
+.btn-outline-info {
+    --bs-btn-color: var(--kahoot-blue);
+    --bs-btn-border-color: var(--kahoot-blue);
+    --bs-btn-hover-bg: var(--kahoot-blue);
+    --bs-btn-hover-border-color: var(--kahoot-blue);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: var(--kahoot-blue-shadow);
+    --bs-btn-active-border-color: var(--kahoot-blue-shadow);
+    --bs-btn-active-color: #fff;
+}
+
+/* Primary is the dark neutral everywhere, including disabled and outline states. */
+.btn-primary:disabled, .btn-primary.disabled {
+    background-color: var(--ynex-primary);
+    border-color: transparent;
+    opacity: 0.65;
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--ynex-primary);
+    --bs-btn-border-color: var(--ynex-primary);
+    --bs-btn-hover-bg: var(--ynex-primary);
+    --bs-btn-hover-border-color: var(--ynex-primary);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: var(--ynex-primary);
+    --bs-btn-active-border-color: var(--ynex-primary);
+    --bs-btn-active-color: #fff;
+    --bs-btn-disabled-color: var(--ynex-primary);
+    --bs-btn-disabled-border-color: var(--ynex-primary);
+}
+
+/* Answer rows shown to the host are display only. */
+.quiz-option-static { cursor: default; pointer-events: none; margin-bottom: 0; }
+.quiz-option-static:hover { filter: none; }
+.option-number { background-color: rgba(255, 255, 255, 0.9); color: var(--kahoot-text); }
+.min-w-0 { min-width: 0; }
+
+@media (max-width: 575.98px) {
+    .quiz-timer { width: 72px; height: 72px; font-size: 2.25rem; margin-bottom: 0; }
+    .quiz-option { font-size: 1.25rem; padding: 14px 16px; }
+}
+
+/* Nav labels never wrap; a long email is truncated instead. */
+.navbar .nav-link { white-space: nowrap; }
+.nav-user { display: inline-block; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
+
+/* Pages were written for a centered .container; inside the Ynex shell they fill the content area. */
+.ynex-content > .container,
+.ynex-content > .container-fluid { max-width: 1320px; margin-top: 0 !important; padding-left: 0; padding-right: 0; }
+.ynex-content .display-4 { font-size: 2rem; }
+
+/* Small admin entry in the top-right corner of the player home screen. */
+.home-corner { position: absolute; top: 1rem; right: 1rem; display: flex; align-items: center; gap: .5rem; }
+
+/* On phones the corner would overlap the centred title, so it joins the normal flow. */
+@media (max-width: 575.98px) {
+    .home-corner { position: static; justify-content: flex-end; padding: .75rem 1rem 0; }
+}
+
+/* Language switcher (ID / EN) */
+.lang-switch { display: inline-flex; border: 1px solid #d9dbe3; border-radius: .4rem; overflow: hidden; background: #fff; }
+.lang-switch-link { padding: .2rem .55rem; font-size: .75rem; font-weight: 600; color: #6c7384; text-decoration: none; }
+.lang-switch-link.active { background: #845adf; color: #fff; }
+.lang-switch-link:not(.active):hover { background: #f3f4f9; }
+
+.ynex-demo-bar {
+    background-color: var(--ynex-primary-tint);
+    color: var(--ynex-primary-dark);
+    border-bottom: 1px solid var(--ynex-border);
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

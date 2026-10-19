@@ -1,0 +1,88 @@
+@using MudBlazor
+@using BlazorQuiz.Components.Shared
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="ynex-app">
+    <aside class="ynex-sidebar" id="ynex-sidebar" aria-label="@L.T("Menu utama", "Main menu")">
+        <a class="ynex-brand" href="/">
+            <span class="ynex-brand-mark"><i class="bi bi-puzzle-fill"></i></span>
+            <span class="ynex-brand-text">Quiz System</span>
+        </a>
+        <nav class="ynex-menu">
+            <div class="ynex-menu-title">@L.T("Utama", "Main")</div>
+            <NavLink class="ynex-menu-link" href="/" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door"></i><span>@L.T("Beranda", "Home")</span>
+            </NavLink>
+            <NavLink class="ynex-menu-link" href="/quiz">
+                <i class="bi bi-person-fill"></i><span>@L.T("Gabung Quiz", "Join Quiz")</span>
+            </NavLink>
+            <NavLink class="ynex-menu-link" href="/leaderboard">
+                <i class="bi bi-trophy-fill"></i><span>Leaderboard</span>
+            </NavLink>
+            <AuthorizeView>
+                <div class="ynex-menu-title">@L.T("Kelola", "Manage")</div>
+                <NavLink class="ynex-menu-link" href="/quiz-editor">
+                    <i class="bi bi-pencil-square"></i><span>@L.T("Editor Quiz", "Quiz Editor")</span>
+                </NavLink>
+                <NavLink class="ynex-menu-link" href="/quiz-host">
+                    <i class="bi bi-person-video3"></i><span>Host Quiz</span>
+                </NavLink>
+                <NavLink class="ynex-menu-link" href="/activity-logs">
+                    <i class="bi bi-list-ul"></i><span>@L.T("Log Aktivitas", "Activity Log")</span>
+                </NavLink>
+            </AuthorizeView>
+        </nav>
+    </aside>
+    <div class="ynex-backdrop" data-ynex-toggle></div>
+
+    <div class="ynex-main">
+        <header class="ynex-header">
+            <button type="button" class="ynex-toggle" data-ynex-toggle aria-label="@L.T("Buka atau tutup menu", "Open or close menu")" aria-controls="ynex-sidebar">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="ynex-header-end">
+                <LanguageSwitcher />
+                <LoginPartial />
+            </div>
+        </header>
+
+        <div class="ynex-demo-bar">
+            <i class="bi bi-clock-history me-2"></i>
+            <span>@L.T("Mode Demo: Data otomatis di-reset setiap hari pukul 00:00 WIB (GMT+7)", "Demo Mode: Data is automatically reset daily at 00:00 WIB (GMT+7)")</span>
+        </div>
+
+        <main role="main" class="ynex-content">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    // Ynex palette; MudBlazor components inherit it so they match the shell.
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#845adf",
+            Secondary = "#23b7e5",
+            Info = "#23b7e5",
+            Success = "#26bf94",
+            Warning = "#f5b849",
+            Error = "#e6533c",
+            AppbarBackground = "#ffffff",
+            Background = "#f3f4f9",
+            Surface = "#ffffff",
+            TextPrimary = "#2b2f3a",
+            TextSecondary = "#6c7384"
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = new[] { "Poppins", "sans-serif" } }
+        }
+    };
+}

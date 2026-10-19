@@ -1,0 +1,487 @@
+@page "/quiz-editor"
+@using BlazorQuiz.Models
+@using BlazorQuiz.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IQuizService QuizService
+@inject IActivityLogService ActivityLogService
+@inject NavigationManager Navigation
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+<PageTitle>@L.T("Editor Quiz", "Quiz Editor")</PageTitle>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">@L.T("Editor Quiz", "Quiz Editor")</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label for="quiz-title" class="form-label">@L.T("Judul Quiz:", "Quiz Title:")</label>
+                        <input id="quiz-title" class="form-control" @bind="quiz.Title" @bind:event="oninput"
+                            placeholder="@L.T("Masukkan judul quiz...", "Enter quiz title...")" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="quiz-description" class="form-label">@L.T("Deskripsi Quiz (Opsional):", "Quiz Description (Optional):")</label>
+                        <textarea id="quiz-description" class="form-control" rows="3" @bind="quiz.Description" @bind:event="oninput"
+                            placeholder="@L.T("Masukkan deskripsi quiz...", "Enter quiz description...")"></textarea>
+                    </div>
+
+                    @if (quiz.Questions?.Count == 0 || quiz.Questions == null)
+                    {
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle"></i> @L.T("Belum ada pertanyaan. Klik tombol di bawah untuk menambah pertanyaan.", "No questions yet. Click the button below to add a question.")
+                        </div>
+                    }
+
+                    @if (quiz.Questions != null)
+                    {
+                        @for (int questionIndex = 0; questionIndex < quiz.Questions.Count; questionIndex++)
+                        {
+                            var currentQuestionIndex = questionIndex;
+                            var currentQuestion = quiz.Questions[currentQuestionIndex];
+
+                            <div class="card mb-4 border-secondary">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">@L.T("Pertanyaan", "Question") @(currentQuestionIndex + 1)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">@L.T("Teks Pertanyaan:", "Question Text:")</label>
+                                        <input class="form-control" @bind="currentQuestion.Text" @bind:event="oninput"
+                                            placeholder="@L.T("Masukkan pertanyaan...", "Enter the question...")" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">@L.T("Opsi Jawaban:", "Answer Options:")</label>
+                                        @if (currentQuestion.Options != null)
+                                        {
+                                            @for (int optionIndex = 0; optionIndex < currentQuestion.Options.Count; optionIndex++)
+                                            {
+                                                var currentOptionIndex = optionIndex;
+                                                <div class="input-group mb-2">
+                                                    <span class="input-group-text">@(currentOptionIndex + 1).</span>
+                                                    <input class="form-control" 
+                                                        value="@currentQuestion.Options[currentOptionIndex]"
+                                                        @oninput="@((args) => UpdateOption(currentQuestion, currentOptionIndex, args.Value?.ToString() ?? string.Empty))"
+                                                        placeholder="@L.T("Masukkan opsi jawaban...", "Enter an answer option...")" />
+                                                    <button class="btn btn-outline-danger" type="button"
+                                                        @onclick="@(() => RemoveOption(currentQuestion, currentOptionIndex))"
+                                                        disabled="@(currentQuestion.Options.Count <= 2)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            }
+                                        }
+                                        <button class="btn btn-outline-secondary btn-sm" type="button"
+                                            @onclick="@(() => AddOption(currentQuestion))">
+                                            <i class="bi bi-plus-circle"></i> @L.T("Tambah Opsi", "Add Option")
+                                        </button>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">@L.T("Jawaban Benar:", "Correct Answer:")</label>
+                                        <select class="form-select" @bind="currentQuestion.CorrectOptionIndex">
+                                            @if (currentQuestion.Options != null)
+                                            {
+                                                @for (int i = 0; i < currentQuestion.Options.Count; i++)
+                                                {
+                                                    var optionText = string.IsNullOrWhiteSpace(currentQuestion.Options[i])
+                                                        ? L.T($"Opsi {i + 1}", $"Option {i + 1}")
+                                                        : currentQuestion.Options[i];
+                                                    <option value="@i">@optionText</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+
+                                    <button class="btn btn-danger btn-sm" type="button"
+                                        @onclick="@(() => RemoveQuestion(currentQuestion))">
+                                        <i class="bi bi-trash"></i> @L.T("Hapus Pertanyaan", "Delete Question")
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg" type="button" @onclick="AddQuestion">
+                            <i class="bi bi-plus-circle"></i> @L.T("Tambah Pertanyaan", "Add Question")
+                        </button>
+
+                        @if (quiz.Questions?.Count > 0)
+                        {
+                            <button class="btn btn-success" type="button" @onclick="SaveQuiz" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span>@L.T("Menyimpan...", "Saving...")</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save"></i> <span>@L.T("Simpan Quiz", "Save Quiz")</span>
+                                }
+                            </button>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        <div class="alert @(statusMessage.Contains("Error") || statusMessage.Contains("Gagal") || statusMessage.Contains("Failed") ? "alert-danger" : "alert-success") mt-3" role="alert">
+                            @statusMessage
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (savedQuizzes.Any())
+            {
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">@L.T("Quiz yang Tersimpan", "Saved Quizzes")</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>@L.T("Judul", "Title")</th>
+                                        <th>@L.T("Jumlah Pertanyaan", "Questions")</th>
+                                        <th>@L.T("Dibuat", "Created")</th>
+                                        <th>@L.T("Aksi", "Actions")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var savedQuiz in savedQuizzes)
+                                    {
+                                        <tr>
+                                            <td>@savedQuiz.Title</td>
+                                            <td>@savedQuiz.Questions.Count</td>
+                                            <td>@savedQuiz.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="@(() => LoadQuiz(savedQuiz.Id))">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success ms-1" @onclick="@(() => NavigateToHost(savedQuiz.Id))">
+                                                    <i class="bi bi-play"></i> @L.T("Mulai", "Start")
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private Quiz quiz = new Quiz();
+    private string statusMessage = string.Empty;
+    private bool isSaving = false;
+    private List<Quiz> savedQuizzes = new List<Quiz>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Initialize quiz and questions properly
+            if (quiz.Questions == null)
+            {
+                quiz.Questions = new List<Question>();
+            }
+
+            // Load saved quizzes
+            await LoadSavedQuizzes();
+
+            await ActivityLogService.LogActivityAsync("QuestionEditor initialized", "Question editor component started", "Info", source: "QuestionEditor");
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("QuestionEditor initialization error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = L.T($"Error saat inisialisasi: {ex.Message}", $"Error during initialization: {ex.Message}");
+        }
+    }
+
+    private async Task LoadSavedQuizzes()
+    {
+        try
+        {
+            savedQuizzes = await QuizService.GetAllQuizzesAsync();
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Load saved quizzes error", ex.Message, "Error", source: "QuestionEditor");
+        }
+    }
+
+    private async void UpdateOption(Question question, int optionIndex, string value)
+    {
+        try
+        {
+            await ActivityLogService.LogActivityAsync("Option updated", $"Option {optionIndex + 1} updated to: '{value}'", "Info", source: "QuestionEditor");
+            
+            if (question.Options != null && optionIndex < question.Options.Count)
+            {
+                // Create a new list to ensure proper binding
+                var newOptions = new List<string>(question.Options);
+                newOptions[optionIndex] = value;
+                
+                // Force the setter to be called by assigning a new list
+                question.Options = newOptions;
+                
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Update option error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = $"Error updating option: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async void AddQuestion()
+    {
+        try
+        {
+            await ActivityLogService.LogActivityAsync("Question added", "New question added to quiz", "Info", source: "QuestionEditor");
+
+            if (quiz.Questions == null)
+            {
+                quiz.Questions = new List<Question>();
+            }
+
+            var newQuestion = new Question
+            {
+                Text = string.Empty,
+                CorrectOptionIndex = 0
+            };
+            
+            // Initialize options properly by creating a new list and assigning it
+            var initialOptions = new List<string> { string.Empty, string.Empty };
+            newQuestion.Options = initialOptions;
+
+            quiz.Questions.Add(newQuestion);
+            statusMessage = L.T($"Pertanyaan ke-{quiz.Questions.Count} berhasil ditambahkan.", $"Question {quiz.Questions.Count} added.");
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Add question error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = $"Error: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async void RemoveQuestion(Question question)
+    {
+        try
+        {
+            if (quiz.Questions != null && quiz.Questions.Contains(question))
+            {
+                quiz.Questions.Remove(question);
+                statusMessage = L.T("Pertanyaan berhasil dihapus.", "Question deleted.");
+                await ActivityLogService.LogActivityAsync("Question removed", "Question removed from quiz", "Info", source: "QuestionEditor");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Remove question error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = $"Error: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async void AddOption(Question question)
+    {
+        try
+        {
+            await ActivityLogService.LogActivityAsync("Option added", $"New option added to question. Total options: {(question.Options?.Count ?? 0) + 1}", "Info", source: "QuestionEditor");
+            
+            // Create a completely new list to force the setter
+            var newOptions = new List<string>(question.Options ?? new List<string>());
+            newOptions.Add(string.Empty);
+            
+            // Assign the new list to trigger the setter
+            question.Options = newOptions;
+            
+            statusMessage = L.T($"Opsi baru ditambahkan. Total opsi: {question.Options.Count}", $"Option added. Total options: {question.Options.Count}");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Add option error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = L.T($"Error menambah opsi: {ex.Message}", $"Error adding option: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+
+    private async void RemoveOption(Question question, int optionIndex)
+    {
+        try
+        {
+            if (question.Options != null && question.Options.Count > 2 && optionIndex < question.Options.Count)
+            {
+                // Create a new list to force the setter
+                var newOptions = new List<string>(question.Options);
+                newOptions.RemoveAt(optionIndex);
+                
+                // Assign the new list to trigger the setter
+                question.Options = newOptions;
+
+                // Adjust correct answer index if necessary
+                if (question.CorrectOptionIndex >= question.Options.Count)
+                {
+                    question.CorrectOptionIndex = Math.Max(0, question.Options.Count - 1);
+                }
+
+                statusMessage = L.T($"Opsi dihapus. Sisa opsi: {question.Options.Count}", $"Option removed. Remaining options: {question.Options.Count}");
+                await ActivityLogService.LogActivityAsync("Option removed", $"Option {optionIndex + 1} removed. Remaining options: {question.Options.Count}", "Info", source: "QuestionEditor");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Remove option error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = $"Error: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveQuiz()
+    {
+        try
+        {
+            isSaving = true;
+            statusMessage = L.T("Menyimpan quiz...", "Saving quiz...");
+            StateHasChanged();
+
+            await ActivityLogService.LogActivityAsync("Quiz save started", $"Starting to save quiz: {quiz.Title}", "Info", source: "QuestionEditor");
+
+            // Validation
+            if (string.IsNullOrWhiteSpace(quiz.Title))
+            {
+                statusMessage = L.T("Judul quiz harus diisi!", "Quiz title is required!");
+                await ActivityLogService.LogActivityAsync("Quiz save validation failed", "Quiz title is empty", "Warning", source: "QuestionEditor");
+                return;
+            }
+
+            if (quiz.Questions == null || quiz.Questions.Count == 0)
+            {
+                statusMessage = L.T("Minimal harus ada 1 pertanyaan!", "At least 1 question is required!");
+                await ActivityLogService.LogActivityAsync("Quiz save validation failed", "No questions in quiz", "Warning", source: "QuestionEditor");
+                return;
+            }
+
+            // Validate each question
+            for (int i = 0; i < quiz.Questions.Count; i++)
+            {
+                var question = quiz.Questions[i];
+                
+                if (string.IsNullOrWhiteSpace(question.Text))
+                {
+                    statusMessage = L.T($"Teks pertanyaan {i + 1} harus diisi!", $"Text of question {i + 1} is required!");
+                    await ActivityLogService.LogActivityAsync("Quiz save validation failed", $"Question {i + 1} text is empty", "Warning", source: "QuestionEditor");
+                    return;
+                }
+
+                if (question.Options == null || question.Options.Count < 2)
+                {
+                    statusMessage = L.T($"Pertanyaan {i + 1} harus memiliki minimal 2 opsi!", $"Question {i + 1} must have at least 2 options!");
+                    await ActivityLogService.LogActivityAsync("Quiz save validation failed", $"Question {i + 1} has less than 2 options", "Warning", source: "QuestionEditor");
+                    return;
+                }
+
+                // Check if all options have content
+                for (int j = 0; j < question.Options.Count; j++)
+                {
+                    if (string.IsNullOrWhiteSpace(question.Options[j]))
+                    {
+                        statusMessage = L.T($"Semua opsi pada pertanyaan {i + 1} harus diisi!", $"All options of question {i + 1} are required!");
+                        await ActivityLogService.LogActivityAsync("Quiz save validation failed", $"Question {i + 1}, option {j + 1} is empty", "Warning", source: "QuestionEditor");
+                        return;
+                    }
+                }
+
+                if (question.CorrectOptionIndex < 0 || question.CorrectOptionIndex >= question.Options.Count)
+                {
+                    statusMessage = L.T($"Jawaban benar pada pertanyaan {i + 1} tidak valid!", $"The correct answer of question {i + 1} is invalid!");
+                    await ActivityLogService.LogActivityAsync("Quiz save validation failed", $"Question {i + 1} has invalid correct option index", "Warning", source: "QuestionEditor");
+                    return;
+                }
+            }
+
+            // Save to database
+            Quiz savedQuiz;
+            if (quiz.Id == 0)
+            {
+                // Create new quiz
+                savedQuiz = await QuizService.CreateQuizAsync(quiz);
+                statusMessage = L.T($"Quiz '{savedQuiz.Title}' berhasil disimpan dengan ID: {savedQuiz.Id}", $"Quiz '{savedQuiz.Title}' saved with ID: {savedQuiz.Id}");
+                await ActivityLogService.LogActivityAsync("Quiz created", $"New quiz created: {savedQuiz.Title} (ID: {savedQuiz.Id})", "Info", source: "QuestionEditor");
+            }
+            else
+            {
+                // Update existing quiz
+                savedQuiz = await QuizService.UpdateQuizAsync(quiz);
+                statusMessage = L.T($"Quiz '{savedQuiz.Title}' berhasil diperbarui!", $"Quiz '{savedQuiz.Title}' updated!");
+                await ActivityLogService.LogActivityAsync("Quiz updated", $"Quiz updated: {savedQuiz.Title} (ID: {savedQuiz.Id})", "Info", source: "QuestionEditor");
+            }
+
+            // Reload saved quizzes
+            await LoadSavedQuizzes();
+
+            // Reset form for new quiz
+            quiz = new Quiz { Questions = new List<Question>() };
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Quiz save error", ex.Message, "Error", source: "QuestionEditor");
+            statusMessage = L.T($"Gagal menyimpan quiz: {ex.Message}", $"Failed to save quiz: {ex.Message}");
+            StateHasChanged();
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadQuiz(int quizId)
+    {
+        try
+        {
+            var loadedQuiz = await QuizService.GetQuizByIdAsync(quizId);
+            if (loadedQuiz != null)
+            {
+                quiz = loadedQuiz;
+                statusMessage = L.T($"Quiz '{quiz.Title}' berhasil dimuat untuk diedit.", $"Quiz '{quiz.Title}' loaded for editing.");
+                await ActivityLogService.LogActivityAsync("Quiz loaded for editing", $"Quiz loaded: {quiz.Title} (ID: {quizId})", "Info", source: "QuestionEditor");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            await ActivityLogService.LogActivityAsync("Load quiz error", $"Failed to load quiz ID: {quizId}, Error: {ex.Message}", "Error", source: "QuestionEditor");
+            statusMessage = L.T($"Gagal memuat quiz: {ex.Message}", $"Failed to load quiz: {ex.Message}");
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToHost(int quizId)
+    {
+        Navigation.NavigateTo($"/quiz-host/{quizId}");
+    }
+}

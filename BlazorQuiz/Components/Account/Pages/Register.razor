@@ -1,0 +1,11 @@
+﻿@page "/Account/Register"
+
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Registration is disabled. Redirect to login page.
+        NavigationManager.NavigateTo("/Account/Login");
+    }
+}

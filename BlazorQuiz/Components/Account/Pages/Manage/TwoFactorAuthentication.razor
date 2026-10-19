@@ -1,0 +1,101 @@
+﻿@page "/Account/Manage/TwoFactorAuthentication"
+
+@using Microsoft.AspNetCore.Http.Features
+@using Microsoft.AspNetCore.Identity
+@using BlazorQuiz.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityUserAccessor UserAccessor
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>@L.T("Verifikasi dua langkah", "Two-factor authentication")</PageTitle>
+
+<StatusMessage />
+<h3>@L.T("Verifikasi dua langkah", "Two-factor authentication")</h3>
+@if (canTrack)
+{
+    if (is2faEnabled)
+    {
+        if (recoveryCodesLeft == 0)
+        {
+            <div class="alert alert-danger">
+                <strong>@L.T("Kode pemulihan Anda habis.", "You have no recovery codes left.")</strong>
+                <p>@L.T("Anda harus", "You must") <a href="Account/Manage/GenerateRecoveryCodes">@L.T("membuat kode pemulihan baru", "generate a new set of recovery codes")</a> @L.T("sebelum bisa masuk dengan kode pemulihan.", "before you can sign in with a recovery code.")</p>
+            </div>
+        }
+        else if (recoveryCodesLeft == 1)
+        {
+            <div class="alert alert-danger">
+                <strong>@L.T("Tersisa 1 kode pemulihan.", "You have 1 recovery code left.")</strong>
+                <p>@L.T("Anda dapat", "You can") <a href="Account/Manage/GenerateRecoveryCodes">@L.T("membuat kode pemulihan baru", "generate a new set of recovery codes")</a>.</p>
+            </div>
+        }
+        else if (recoveryCodesLeft <= 3)
+        {
+            <div class="alert alert-warning">
+                <strong>@L.T("Tersisa", "You have") @recoveryCodesLeft @L.T("kode pemulihan.", "recovery codes left.")</strong>
+                <p>@L.T("Sebaiknya", "You should") <a href="Account/Manage/GenerateRecoveryCodes">@L.T("buat kode pemulihan baru", "generate a new set of recovery codes")</a>.</p>
+            </div>
+        }
+
+        if (isMachineRemembered)
+        {
+            <form style="display: inline-block" @formname="forget-browser" @onsubmit="OnSubmitForgetBrowserAsync" method="post">
+                <AntiforgeryToken />
+                <button type="submit" class="btn btn-primary">@L.T("Lupakan browser ini", "Forget this browser")</button>
+            </form>
+        }
+
+        <a href="Account/Manage/Disable2fa" class="btn btn-primary">@L.T("Nonaktifkan", "Disable")</a>
+        <a href="Account/Manage/GenerateRecoveryCodes" class="btn btn-primary">@L.T("Atur ulang kode pemulihan", "Reset recovery codes")</a>
+    }
+
+    <h4>@L.T("Aplikasi autentikator", "Authenticator app")</h4>
+    @if (!hasAuthenticator)
+    {
+        <a href="Account/Manage/EnableAuthenticator" class="btn btn-primary">@L.T("Tambah aplikasi autentikator", "Add authenticator app")</a>
+    }
+    else
+    {
+        <a href="Account/Manage/EnableAuthenticator" class="btn btn-primary">@L.T("Atur aplikasi autentikator", "Set up authenticator app")</a>
+        <a href="Account/Manage/ResetAuthenticator" class="btn btn-primary">@L.T("Atur ulang aplikasi autentikator", "Reset authenticator app")</a>
+    }
+}
+else
+{
+    <div class="alert alert-danger">
+        <strong>@L.T("Kebijakan privasi dan cookie belum diterima.", "Privacy and cookie policy have not been accepted.")</strong>
+        <p>@L.T("Anda harus menerima kebijakan sebelum mengaktifkan verifikasi dua langkah.", "You must accept the policy before you can enable two-factor authentication.")</p>
+    </div>
+}
+
+@code {
+    private bool canTrack;
+    private bool hasAuthenticator;
+    private int recoveryCodesLeft;
+    private bool is2faEnabled;
+    private bool isMachineRemembered;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        canTrack = HttpContext.Features.Get<ITrackingConsentFeature>()?.CanTrack ?? true;
+        hasAuthenticator = await UserManager.GetAuthenticatorKeyAsync(user) is not null;
+        is2faEnabled = await UserManager.GetTwoFactorEnabledAsync(user);
+        isMachineRemembered = await SignInManager.IsTwoFactorClientRememberedAsync(user);
+        recoveryCodesLeft = await UserManager.CountRecoveryCodesAsync(user);
+    }
+
+    private async Task OnSubmitForgetBrowserAsync()
+    {
+        await SignInManager.ForgetTwoFactorClientAsync();
+
+        RedirectManager.RedirectToCurrentPageWithStatus(
+            L.T("Browser ini sudah dilupakan. Saat masuk lagi dari browser ini, Anda akan diminta kode verifikasi dua langkah.", "The current browser has been forgotten. When you sign in again from this browser you will be prompted for your 2FA code."),
+            HttpContext);
+    }
+}

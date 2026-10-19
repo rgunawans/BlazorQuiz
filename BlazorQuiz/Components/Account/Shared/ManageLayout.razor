@@ -1,0 +1,35 @@
+@inherits LayoutComponentBase
+@layout BlazorQuiz.Components.Layout.MainLayout
+@inject NavigationManager NavigationManager
+
+@if (HttpContext is null)
+{
+    <p>@L.T("Memuat...", "Loading...")</p>
+}
+else
+{
+    <h1>@L.T("Kelola akun", "Manage account")</h1>
+
+    <div class="row">
+        <div class="col-md-3">
+            <ManageNavMenu />
+        </div>
+        <div class="col-md-9">
+            @Body
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (HttpContext is null)
+        {
+            // Identity pages need to set cookies, so go back to a server-rendered request.
+            NavigationManager.Refresh(forceReload: true);
+        }
+    }
+}

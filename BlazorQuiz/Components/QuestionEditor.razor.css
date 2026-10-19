@@ -1,0 +1,21 @@
+/* Styling khusus untuk Quiz Editor */
+.quiz-editor-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem 0;
+}
+.quiz-editor-container h3 {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.quiz-editor-container .card {
+    border-radius: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.quiz-editor-container .btn-primary {
+    width: 100%;
+    margin-top: 1rem;
+}
+.quiz-editor-container .alert-info {
+    text-align: center;
+}

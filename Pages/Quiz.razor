@@ -1,0 +1,43 @@
+@page "/quiz"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+
+<h3>Quiz</h3>
+@if (currentQuestion != null)
+{
+    <div>
+        <p>@currentQuestion.Text</p>
+        @for (int i = 0; i < currentQuestion.Options.Count; i++)
+        {
+            <button @onclick="() => SubmitAnswer(i)">@currentQuestion.Options[i]</button>
+        }
+    </div>
+}
+
+@code {
+    private Question? currentQuestion;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/quizhub"))
+            .Build();
+
+        hubConnection.On<Question>("ReceiveQuestion", (question) =>
+        {
+            currentQuestion = question;
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task SubmitAnswer(int optionIndex)
+    {
+        if (hubConnection != null && currentQuestion != null)
+        {
+            await hubConnection.SendAsync("SubmitAnswer", "PlayerName", currentQuestion.Id, optionIndex);
+        }
+    }
+}

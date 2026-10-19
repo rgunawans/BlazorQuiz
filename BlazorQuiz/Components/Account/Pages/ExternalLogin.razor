@@ -1,0 +1,11 @@
+﻿@page "/Account/ExternalLogin"
+
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        // External login is disabled. Redirect to login page.
+        NavigationManager.NavigateTo("/Account/Login");
+    }
+}

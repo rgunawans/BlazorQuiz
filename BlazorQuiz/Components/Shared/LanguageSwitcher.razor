@@ -1,0 +1,17 @@
+@using BlazorQuiz.Services
+@inject ILocalizer L
+@inject NavigationManager Navigation
+
+@* Plain links to the /set-language endpoint: works on static and interactive pages alike. *@
+<div class="lang-switch" role="group" aria-label="@L.T("Bahasa", "Language")">
+    <a class="lang-switch-link @(L.IsEnglish ? "" : "active")" href="@LanguageUrl("id")" data-enhance-nav="false" title="Bahasa Indonesia">ID</a>
+    <a class="lang-switch-link @(L.IsEnglish ? "active" : "")" href="@LanguageUrl("en")" data-enhance-nav="false" title="English">EN</a>
+</div>
+
+@code {
+    private string LanguageUrl(string lang)
+    {
+        var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+        return $"/set-language?lang={lang}&returnUrl={Uri.EscapeDataString(path)}";
+    }
+}

@@ -15,6 +15,16 @@
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="BlazorQuiz.styles.css" />
     <HeadOutlet />
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem("blazorquiz_theme") || "auto";
+                var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+                var theme = saved === "auto" ? (prefersDark ? "dark" : "light") : saved;
+                document.documentElement.setAttribute("data-bs-theme", theme);
+            } catch (e) { }
+        })();
+    </script>
 </head>
 
 <body>
@@ -30,10 +40,98 @@
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
     <script>
-        // Sidebar toggle by delegation so it survives enhanced navigation.
+        function setThemePreference(val) {
+            var effective = val;
+            if (val === "auto") {
+                var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+                effective = prefersDark ? "dark" : "light";
+            }
+            document.documentElement.setAttribute("data-bs-theme", effective);
+            try { localStorage.setItem("blazorquiz_theme", val); } catch (err) { }
+            updateThemeDropdownActive(val);
+        }
+
+        function updateThemeDropdownActive(val) {
+            document.querySelectorAll("[data-theme-value]").forEach(function (btn) {
+                if (btn.getAttribute("data-theme-value") === val) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            var saved = localStorage.getItem("blazorquiz_theme") || "auto";
+            updateThemeDropdownActive(saved);
+        });
+
+        // Delegation handler for sidebar and theme menu interactions
         document.addEventListener("click", function (e) {
-            if (e.target.closest("[data-ynex-toggle]")) { document.body.classList.toggle("ynex-sidebar-open"); }
-            else if (e.target.closest(".ynex-menu-link")) { document.body.classList.remove("ynex-sidebar-open"); }
+            if (e.target.closest("[data-ynex-toggle]")) {
+                document.body.classList.toggle("ynex-sidebar-open");
+                return;
+            }
+
+            // Close sidebar on normal menu click (except theme toggle inside sidebar)
+            if (e.target.closest(".ynex-menu-link:not([data-theme-toggle])")) {
+                document.body.classList.remove("ynex-sidebar-open");
+            }
+
+            // Direct theme toggle (e.g. from sidebar menu)
+            if (e.target.closest("[data-theme-toggle]")) {
+                var current = document.documentElement.getAttribute("data-bs-theme") || "light";
+                var next = current === "dark" ? "light" : "dark";
+                setThemePreference(next);
+                return;
+            }
+
+            // Dropdown theme selection
+            var themeItem = e.target.closest("[data-theme-value]");
+            if (themeItem) {
+                var val = themeItem.getAttribute("data-theme-value");
+                setThemePreference(val);
+                var dropdownMenu = themeItem.closest(".dropdown-menu");
+                if (dropdownMenu) {
+                    dropdownMenu.classList.remove("show");
+                    var parent = dropdownMenu.closest(".theme-dropdown");
+                    if (parent) {
+                        parent.classList.remove("show");
+                        var btn = parent.querySelector(".dropdown-toggle");
+                        if (btn) btn.setAttribute("aria-expanded", "false");
+                    }
+                }
+                return;
+            }
+
+            // Delegated dropdown toggle fallback
+            var toggleBtn = e.target.closest(".theme-dropdown .dropdown-toggle");
+            if (toggleBtn) {
+                var parent = toggleBtn.closest(".theme-dropdown");
+                var menu = parent.querySelector(".dropdown-menu");
+                var isShowing = menu.classList.contains("show");
+                document.querySelectorAll(".theme-dropdown .dropdown-menu.show").forEach(function (m) {
+                    m.classList.remove("show");
+                    m.closest(".theme-dropdown").classList.remove("show");
+                });
+                if (!isShowing) {
+                    parent.classList.add("show");
+                    menu.classList.add("show");
+                    toggleBtn.setAttribute("aria-expanded", "true");
+                } else {
+                    toggleBtn.setAttribute("aria-expanded", "false");
+                }
+                e.stopPropagation();
+                return;
+            }
+
+            // Close theme dropdown when clicking outside
+            document.querySelectorAll(".theme-dropdown .dropdown-menu.show").forEach(function (m) {
+                m.classList.remove("show");
+                m.closest(".theme-dropdown").classList.remove("show");
+                var btn = m.closest(".theme-dropdown").querySelector(".dropdown-toggle");
+                if (btn) btn.setAttribute("aria-expanded", "false");
+            });
         });
     </script>
 </body>

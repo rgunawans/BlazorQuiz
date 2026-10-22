@@ -36,6 +36,13 @@
                     <i class="bi bi-list-ul"></i><span>@L.T("Log Aktivitas", "Activity Log")</span>
                 </NavLink>
             </AuthorizeView>
+            <div class="ynex-menu-title">@L.T("Tampilan", "Appearance")</div>
+            <button type="button" class="ynex-menu-link border-0 bg-transparent w-100 text-start" data-theme-toggle aria-label="@L.T("Ganti tema terang atau gelap", "Toggle light or dark theme")">
+                <i class="bi bi-moon-stars-fill theme-icon-dark" aria-hidden="true"></i>
+                <i class="bi bi-sun-fill theme-icon-light" aria-hidden="true"></i>
+                <span class="theme-text-dark">@L.T("Mode Gelap", "Dark Mode")</span>
+                <span class="theme-text-light">@L.T("Mode Terang", "Light Mode")</span>
+            </button>
         </nav>
     </aside>
     <div class="ynex-backdrop" data-ynex-toggle></div>
@@ -46,6 +53,7 @@
                 <i class="bi bi-list"></i>
             </button>
             <div class="ynex-header-end">
+                <ThemeToggle />
                 <LanguageSwitcher />
                 <LoginPartial />
             </div>
@@ -79,6 +87,20 @@
             Surface = "#ffffff",
             TextPrimary = "#2b2f3a",
             TextSecondary = "#6c7384"
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#845adf",
+            Secondary = "#23b7e5",
+            Info = "#23b7e5",
+            Success = "#26bf94",
+            Warning = "#f5b849",
+            Error = "#e6533c",
+            AppbarBackground = "#1c1f2e",
+            Background = "#141622",
+            Surface = "#1c1f2e",
+            TextPrimary = "#f0f2f8",
+            TextSecondary = "#9aa1b4"
         },
         Typography = new Typography
         {

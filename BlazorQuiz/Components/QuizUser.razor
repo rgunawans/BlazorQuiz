@@ -1,4 +1,4 @@
-﻿@page "/quiz"
+@page "/quiz"
 @page "/quiz/{SessionCode}"
 @using BlazorQuiz.Models
 @using BlazorQuiz.Services
@@ -73,7 +73,7 @@
                     @if (!joinedSession)
                     {
                         <div class="mb-4">
-                            <div class="text-end mb-3"><LanguageSwitcher /></div>
+                            <div class="d-flex justify-content-end align-items-center gap-2 mb-3"><ThemeToggle /><LanguageSwitcher /></div>
                             <label for="session-code" class="form-label">@L.T("Kode Sesi Quiz:", "Quiz Session Code:")</label>
                             <input id="session-code" class="form-control mb-3" @bind="sessionCodeInput" @bind:event="oninput"
                                 placeholder="@L.T("Masukkan kode sesi...", "Enter session code...")" />

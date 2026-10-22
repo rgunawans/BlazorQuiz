@@ -1,0 +1,31 @@
+@using BlazorQuiz.Services
+@inject ILocalizer L
+
+<div class="dropdown d-inline-block theme-dropdown">
+    <button type="button" class="theme-toggle-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="@L.T("Menu pilihan tema", "Theme selection menu")" title="@L.T("Pilih tema", "Select theme")">
+        <i class="bi bi-moon-stars-fill theme-icon-dark" aria-hidden="true"></i>
+        <i class="bi bi-sun-fill theme-icon-light" aria-hidden="true"></i>
+        <span class="theme-btn-text ms-1">@L.T("Tema", "Theme")</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme-value="light">
+                <i class="bi bi-sun-fill text-warning" aria-hidden="true"></i>
+                <span>@L.T("Terang", "Light")</span>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme-value="dark">
+                <i class="bi bi-moon-stars-fill text-primary" aria-hidden="true"></i>
+                <span>@L.T("Gelap", "Dark")</span>
+            </button>
+        </li>
+        <li><hr class="dropdown-divider my-1"></li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2" data-theme-value="auto">
+                <i class="bi bi-circle-half text-secondary" aria-hidden="true"></i>
+                <span>@L.T("Otomatis (Sistem)", "Auto (System)")</span>
+            </button>
+        </li>
+    </ul>
+</div>

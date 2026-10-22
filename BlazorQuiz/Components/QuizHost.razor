@@ -1,4 +1,4 @@
-﻿@page "/quiz-host"
+@page "/quiz-host"
 @page "/quiz-host/{QuizIdParam}"
 @page "/quiz-host/{QuizIdParam}/{SessionCodeParam}"
 @using BlazorQuiz.Models
@@ -18,7 +18,7 @@
 <PageTitle>Host Quiz</PageTitle>
 
 <div class="container mt-4">
-    <div class="text-end mb-2"><LanguageSwitcher /></div>
+    <div class="d-flex justify-content-end align-items-center gap-2 mb-2"><ThemeToggle /><LanguageSwitcher /></div>
     <div class="row">
         <!-- Main Quiz Panel -->
         <div class="col-lg-8">

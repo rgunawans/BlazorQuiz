@@ -233,8 +233,12 @@ _pkginfo.txt
 ClientBin/
 ~$*
 *~
-*.dbmdl
-*.dbproj.schemaview
+*.db
+*.db-wal
+*.db-shmmdl
+*.db
+*.db-wal
+*.db-shmproj.schemaview
 *.jfm
 *.pfx
 *.publishsettings
@@ -377,6 +381,8 @@ secrets.json
 
 # Local databases and backups
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 *.bak

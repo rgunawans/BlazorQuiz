@@ -456,31 +456,13 @@
                 await ActivityLogService.LogActivityAsync("Invalid state detected", $"SessionStarted: {sessionStarted}, CurrentIndex: {currentIndex}, QuestionCount: {quiz.Questions.Count}", "Warning", source: "QuizHost");
 
                 // Try to fix by checking the most recent question answered
-                using (var context = await QuizService.GetDbContextAsync())
+                var lastAnsweredQuestionId = await QuizService.GetLastAnsweredQuestionIdAsync(quizSession.Id);
+                var lastQuestion = quiz.Questions.FirstOrDefault(q => q.Id == lastAnsweredQuestionId);
+                if (lastQuestion != null)
                 {
-                    var lastQuestionAnswered = await context.QuizAnswers
-                        .Where(qa => qa.QuizSessionId == quizSession.Id)
-                        .OrderByDescending(qa => qa.AnsweredAt)
-                        .FirstOrDefaultAsync();
-
-                    if (lastQuestionAnswered != null)
-                    {
-                        // Find the question index
-                        var lastQuestion = quiz.Questions.FirstOrDefault(q => q.Id == lastQuestionAnswered.QuestionId);
-                        if (lastQuestion != null)
-                        {
-                            currentIndex = quiz.Questions.IndexOf(lastQuestion);
-                            await ActivityLogService.LogActivityAsync("Fixed currentIndex", $"Set currentIndex to: {currentIndex} based on last answered question", "Info", source: "QuizHost");
-
-                            // Update database with corrected index
-                            var session = await context.QuizSessions.FindAsync(quizSession.Id);
-                            if (session != null)
-                            {
-                                session.CurrentQuestionIndex = currentIndex;
-                                await context.SaveChangesAsync();
-                            }
-                        }
-                    }
+                    currentIndex = quiz.Questions.IndexOf(lastQuestion);
+                    await ActivityLogService.LogActivityAsync("Fixed currentIndex", $"Set currentIndex to: {currentIndex} based on last answered question", "Info", source: "QuizHost");
+                    await QuizService.SetSessionProgressAsync(quizSession.Id, currentIndex);
                 }
 
                 statusMessage = L.T($"State diperbaiki. Melanjutkan dari pertanyaan {currentIndex + 1}.", $"State repaired. Continuing from question {currentIndex + 1}.");
@@ -754,15 +736,7 @@
             // BARU: Update CurrentQuestionIndex in database session
             if (quizSession != null)
             {
-                using (var context = await QuizService.GetDbContextAsync())
-                {
-                    var session = await context.QuizSessions.FindAsync(quizSession.Id);
-                    if (session != null)
-                    {
-                        session.CurrentQuestionIndex = currentIndex;
-                        await context.SaveChangesAsync();
-                    }
-                }
+                await QuizService.SetSessionProgressAsync(quizSession.Id, currentIndex);
             }
 
             if (currentIndex >= quiz.Questions.Count)
@@ -776,17 +750,7 @@
                 // Set session inactive in DB
                 if (quizSession != null)
                 {
-                    using (var context = await QuizService.GetDbContextAsync())
-                    {
-                        var session = await context.QuizSessions.FindAsync(quizSession.Id);
-                        if (session != null)
-                        {
-                            session.IsActive = false;
-                            session.EndedAt = DateTime.UtcNow;
-                            await context.SaveChangesAsync();
-                        }
-                    }
-
+                    await QuizService.EndSessionAsync(quizSession.Id);
                 }
 
                 // Notify all participants that quiz is completed

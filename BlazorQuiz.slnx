@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/BlazorQuiz.Tests/BlazorQuiz.Tests.csproj" />
+  </Folder>
   <Project Path="BlazorQuiz/BlazorQuiz.csproj" />
 </Solution>

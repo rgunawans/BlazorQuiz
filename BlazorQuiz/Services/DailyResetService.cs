@@ -67,7 +67,7 @@ namespace BlazorQuiz.Services
             db.ActivityLogs.RemoveRange(db.ActivityLogs);
             await db.SaveChangesAsync();
 
-            await EnsureDefaultQuizAsync(db);
+            await EnsureDefaultQuizAsync(db, _timeZoneService.GetIndonesianTime());
 
             using var scope = _serviceProvider.CreateScope();
             await DataSeeder.SeedDefaultUserAsync(scope.ServiceProvider);
@@ -75,7 +75,7 @@ namespace BlazorQuiz.Services
             _logger.LogInformation("Pembersihan data harian 00:00 WIB selesai.");
         }
 
-        public static async Task EnsureDefaultQuizAsync(ApplicationDbContext db)
+        public static async Task EnsureDefaultQuizAsync(ApplicationDbContext db, DateTime now)
         {
             if (!await db.Quizzes.AnyAsync())
             {
@@ -83,7 +83,7 @@ namespace BlazorQuiz.Services
                 {
                     Title = "Kuis Demo: Trivia Pengetahuan Umum",
                     Description = "Kuis demo bawaan untuk mencoba fitur Host dan Player BlazorQuiz.",
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = now,
                     IsActive = true,
                     Questions = new List<Question>
                     {
@@ -93,7 +93,7 @@ namespace BlazorQuiz.Services
                             OptionsJson = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Bandung", "Jakarta", "Surabaya", "Nusantara" }),
                             CorrectOptionIndex = 1,
                             OrderIndex = 1,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = now
                         },
                         new Question
                         {
@@ -101,7 +101,7 @@ namespace BlazorQuiz.Services
                             OptionsJson = System.Text.Json.JsonSerializer.Serialize(new List<string> { "Venus", "Mars", "Jupiter", "Merkurius" }),
                             CorrectOptionIndex = 1,
                             OrderIndex = 2,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = now
                         },
                         new Question
                         {
@@ -109,7 +109,7 @@ namespace BlazorQuiz.Services
                             OptionsJson = System.Text.Json.JsonSerializer.Serialize(new List<string> { "80", "90", "100", "75" }),
                             CorrectOptionIndex = 1,
                             OrderIndex = 3,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = now
                         }
                     }
                 };

@@ -16,9 +16,6 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddMudServices();
 
-// Add Blazor Server support
-builder.Services.AddServerSideBlazor();
-
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
@@ -87,14 +84,7 @@ builder.Services.AddScoped<ILocalizer, Localizer>();
 builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
 
 // Add QuizService (now using DbContextFactory for thread safety)
-builder.Services.AddScoped<IQuizService, QuizService>(provider =>
-{
-    var contextFactory = provider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-    var timeZoneService = provider.GetRequiredService<ITimeZoneService>();
-    var memoryCache = provider.GetRequiredService<IMemoryCache>();
-    var eventBus = provider.GetRequiredService<IQuizEventBus>();
-    return new QuizService(contextFactory, timeZoneService, memoryCache, eventBus);
-});
+builder.Services.AddScoped<IQuizService, QuizService>();
 
 // Add ActivityLogService (now uses Indonesian timezone)
 builder.Services.AddSingleton<ActivityLogQueue>();
@@ -118,7 +108,7 @@ using (var scope = app.Services.CreateScope())
         await using (var dbContext = contextFactory.CreateDbContext())
         {
             await dbContext.Database.EnsureCreatedAsync();
-            await DailyResetService.EnsureDefaultQuizAsync(dbContext);
+            await DailyResetService.EnsureDefaultQuizAsync(dbContext, app.Services.GetRequiredService<ITimeZoneService>().GetIndonesianTime());
         }
 
         await DataSeeder.SeedDefaultUserAsync(scope.ServiceProvider);
@@ -185,6 +175,7 @@ app.MapGet("/auto-login", async (
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     IConfiguration config,
+    ITimeZoneService timeZoneService,
     ILogger<Program> logger) =>
 {
     try
@@ -193,7 +184,7 @@ app.MapGet("/auto-login", async (
         await using (var db = contextFactory.CreateDbContext())
         {
             await db.Database.EnsureCreatedAsync();
-            await DailyResetService.EnsureDefaultQuizAsync(db);
+            await DailyResetService.EnsureDefaultQuizAsync(db, timeZoneService.GetIndonesianTime());
         }
 
         var adminEmail = config["Seed:AdminEmail"] ?? "admin@blazorquiz.com";

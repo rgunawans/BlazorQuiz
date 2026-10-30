@@ -10,6 +10,17 @@ A self-hosted, Kahoot-style real-time quiz system. The host creates and runs a s
 
 > **Live Demo:** [https://blazorquiz.bukutamudigital.com/](https://blazorquiz.bukutamudigital.com/) (Includes 1-click demo auto-login for Host and Quiz Editor)
 
+## ⚠️ Demo source code: read before going live
+
+This source code is built for a **public demo**, not for a real production system. The demo shortcuts below are intentional, and **must be fixed before you publish your own copy or run it live**:
+
+1. **`/auto-login` signs anyone in as admin.** The endpoint is anonymous and has no environment check (`BlazorQuiz/Program.cs`). It also creates an admin with the default password `Admin123!` if none exists. Restrict it to Development, or behind a config flag that is off by default, and remove the default password.
+2. **A daily job deletes all data.** `DailyResetService` removes every session, participant, answer and activity log at 00:00 WIB, in every environment. Register it only when a demo flag is on.
+3. **Database setup is demo-oriented.** The app calls `EnsureCreated` at startup instead of migrations, and silently falls back to a SQLite file (`quiz.db`) when no connection string is set. This conflicts with the `dotnet ef database update` steps in this README. Use `MigrateAsync()` and fail fast when the connection string is missing.
+4. **Any signed-in user can host any session.** `QuizHost.razor` loads a session by its code without checking that `HostUserId` is the current user. This is harmless while only one admin exists, but it must be checked once there are more accounts.
+
+Until these four are fixed, do not expose a copy of this app to the public internet with real data.
+
 ## Screenshots
 
 ### Mobile View
@@ -101,6 +112,8 @@ In Development mode, default accounts are created automatically. See [default ac
 
 ## Deploy to IIS or ASP.NET hosting
 
+> **Before deploying for real, fix the four items in "Demo source code" above.**
+
 This guide covers Windows Server with IIS, or IIS-based ASP.NET hosting such as MonsterASP.NET.
 
 > **Disclosure:** I have no affiliation with any hosting provider. MonsterASP.NET is only an example of ASP.NET hosting you can use, not a paid endorsement, and this README contains no affiliate links. Choose a provider that fits your needs and budget.
@@ -157,6 +170,7 @@ This guide covers Windows Server with IIS, or IIS-based ASP.NET hosting such as 
 - After the first login, change the admin password on the account page, then remove `Seed:AdminPassword` from the server configuration file.
 - Use HTTPS. The app enables HSTS and HTTPS redirection outside Development.
 - Never commit connection strings or passwords to the repo.
+- Live game state (timers, events, leaderboard cache) is kept in memory. Run a single app instance, and avoid app pool recycles or restarts during a game: a restart makes every pending answer count as the slowest.
 
 ## Project structure
 
@@ -173,7 +187,7 @@ This project was built with the help of Claude (Anthropic) and is maintained and
 
 ## Status
 
-Work in progress. Not yet available: automated tests, CI, Docker, importing questions from Excel. Feedback and contributions are welcome through issues.
+Work in progress. Not yet available: CI, Docker, importing questions from Excel. Feedback and contributions are welcome through issues.
 
 ## License
 

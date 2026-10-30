@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using BlazorQuiz.Data;
@@ -20,7 +21,9 @@ public interface IQuizService
     Task<QuizAnswer> SubmitAnswerAsync(int sessionId, int questionId, int participantId, int selectedOptionIndex);
     Task<List<LeaderboardEntry>> GetLeaderboardAsync(int sessionId);
     Task<List<QuestionLeaderboardEntry>> GetQuestionLeaderboardAsync(int sessionId, int questionId);
-    Task<ApplicationDbContext> GetDbContextAsync();
+    Task<int?> GetLastAnsweredQuestionIdAsync(int sessionId);
+    Task SetSessionProgressAsync(int sessionId, int questionIndex);
+    Task EndSessionAsync(int sessionId);
 }
 
 public class QuizService : IQuizService
@@ -123,22 +126,31 @@ public class QuizService : IQuizService
 
     public async Task<QuizSession> CreateQuizSessionAsync(int quizId, string hostUserId)
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
-        var sessionCode = GenerateSessionCode();
-
-        var session = new QuizSession
+        for (var attempt = 0; ; attempt++)
         {
-            QuizId = quizId,
-            SessionCode = sessionCode,
-            HostUserId = hostUserId,
-            StartedAt = _timeZoneService.GetIndonesianTime(), // Use Indonesian time
-            IsActive = true,
-            CurrentQuestionIndex = -1
-        };
+            using var context = await _contextFactory.CreateDbContextAsync();
 
-        context.QuizSessions.Add(session);
-        await context.SaveChangesAsync();
-        return session;
+            var session = new QuizSession
+            {
+                QuizId = quizId,
+                SessionCode = GenerateSessionCode(),
+                HostUserId = hostUserId,
+                StartedAt = _timeZoneService.GetIndonesianTime(), // Use Indonesian time
+                IsActive = true,
+                CurrentQuestionIndex = -1
+            };
+
+            context.QuizSessions.Add(session);
+            try
+            {
+                await context.SaveChangesAsync();
+                return session;
+            }
+            catch (DbUpdateException) when (attempt == 0)
+            {
+                // Session code collided with the unique index: retry once with a new code
+            }
+        }
     }
 
     public Task<QuizSession?> GetActiveQuizSessionAsync(string sessionCode) => LoadSessionAsync(sessionCode, activeOnly: true);
@@ -367,15 +379,42 @@ public class QuizService : IQuizService
 
     private static string GenerateSessionCode()
     {
-        var random = new Random();
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return new string(Enumerable.Repeat(chars, 6)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
+        return string.Create(6, chars, (span, alphabet) =>
+        {
+            for (var i = 0; i < span.Length; i++)
+            {
+                span[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+            }
+        });
     }
 
-    // Helper for host to get raw db context
-    public async Task<ApplicationDbContext> GetDbContextAsync()
+    public async Task<int?> GetLastAnsweredQuestionIdAsync(int sessionId)
     {
-        return await _contextFactory.CreateDbContextAsync();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.QuizAnswers
+            .Where(a => a.QuizSessionId == sessionId)
+            .OrderByDescending(a => a.AnsweredAt)
+            .Select(a => (int?)a.QuestionId)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task SetSessionProgressAsync(int sessionId, int questionIndex)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.QuizSessions
+            .Where(s => s.Id == sessionId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CurrentQuestionIndex, questionIndex));
+    }
+
+    public async Task EndSessionAsync(int sessionId)
+    {
+        var endedAt = _timeZoneService.GetIndonesianTime();
+        using var context = await _contextFactory.CreateDbContextAsync();
+        await context.QuizSessions
+            .Where(s => s.Id == sessionId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.IsActive, false)
+                .SetProperty(x => x.EndedAt, endedAt));
     }
 }

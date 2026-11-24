@@ -656,13 +656,10 @@
     {
         try
         {
-            await ActivityLogService.LogActivityAsync("QuizUser initialized", "Quiz user component starting", "Info", source: "QuizUser");
-
             // If session code is provided in URL, pre-fill it
             if (!string.IsNullOrEmpty(SessionCode))
             {
                 sessionCodeInput = SessionCode;
-                await ActivityLogService.LogActivityAsync("Session code from URL", $"Session code: {SessionCode}", "Info", source: "QuizUser");
             }
 
             statusMessage = L.T("Masukkan kode sesi dan nama untuk bergabung.", "Enter the session code and your name to join.");
@@ -903,12 +900,15 @@
         _ = InvokeAsync(async () =>
         {
             if (disposed) return;
-            if (timeRemaining > 0)
+            // Derived from the start time, so a stalled timer catches up instead of drifting
+            var remaining = Services.QuizService.QuestionTimeMs / 1000 - (int)(DateTime.UtcNow - questionStartTime).TotalSeconds;
+            if (remaining > 0)
             {
-                timeRemaining--;
+                timeRemaining = remaining;
                 StateHasChanged();
                 return;
             }
+            timeRemaining = 0;
 
             // Time's up - show results for ALL participants
             countdownTimer?.Dispose();

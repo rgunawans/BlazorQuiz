@@ -415,16 +415,14 @@
             currentIndex = quizSession.CurrentQuestionIndex;
             participants = await QuizService.GetParticipantsAsync(quizSession.Id);
 
-            // Debug log untuk memastikan nilai currentIndex
-            await ActivityLogService.LogActivityAsync("Debug currentIndex", $"CurrentQuestionIndex from DB: {currentIndex}, Total questions: {quiz.Questions.Count}", "Info", source: "QuizHost");
-
             // Set current question if quiz is in progress
             if (sessionStarted && currentIndex >= 0 && currentIndex < quiz.Questions.Count)
             {
                 currentQuestion = quiz.Questions[currentIndex];
 
                 // Start fresh timer for current question
-                timeRemaining = 15; // Changed from 5 to 15 seconds
+                timeRemaining = 15;
+                questionStartTime = DateTime.UtcNow;
                 isQuestionFresh = true;
                 revealAnswerAndScore = false;
 
@@ -837,9 +835,11 @@
         _ = InvokeAsync(() =>
         {
             if (disposed) return;
-            if (timeRemaining > 0)
+            // Derived from the start time, so a stalled timer catches up instead of drifting
+            var remaining = Services.QuizService.QuestionTimeMs / 1000 - (int)(DateTime.UtcNow - questionStartTime).TotalSeconds;
+            if (remaining > 0)
             {
-                timeRemaining--;
+                timeRemaining = remaining;
 
                 if (timeRemaining <= 7 && isQuestionFresh)
                 {
@@ -850,6 +850,7 @@
             }
             else
             {
+                timeRemaining = 0;
                 countdownTimer?.Dispose();
                 isQuestionFresh = false;
                 statusMessage = L.T("Waktu habis! Anda dapat melanjutkan ke pertanyaan berikutnya.", "Time's up! You can continue to the next question.");

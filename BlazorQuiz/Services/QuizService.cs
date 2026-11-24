@@ -397,7 +397,6 @@ public class QuizService : IQuizService
 
         return await context.QuizAnswers
             .Where(a => a.QuizSessionId == sessionId && a.QuestionId == questionId)
-            .Include(a => a.Participant)
             .Select(a => new QuestionLeaderboardEntry
             {
                 UserName = a.Participant.PlayerName,

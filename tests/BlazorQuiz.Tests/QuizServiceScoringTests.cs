@@ -99,6 +99,34 @@ public sealed class QuizServiceScoringTests : IDisposable
         Assert.Equal("B2", saved.Questions.Single().Text);
     }
 
+    [Fact]
+    public async Task Equal_scores_are_ranked_by_faster_average_time()
+    {
+        var (sessionId, questionId, slowId) = await SeedAsync();
+        var fast = await _service.AddParticipantAsync(sessionId, "fast", "c2");
+
+        // Both answer wrong (0 points), so the score ties and only the time decides
+        _bus.ElapsedMs = 5000;
+        await _service.SubmitAnswerAsync(sessionId, questionId, slowId, 0);
+        _bus.ElapsedMs = 2000;
+        await _service.SubmitAnswerAsync(sessionId, questionId, fast.Id, 0);
+
+        var board = await _service.GetLeaderboardAsync(sessionId);
+        Assert.Equal(["fast", "player"], board.Select(b => b.ParticipantName));
+        Assert.Equal([1, 2], board.Select(b => b.Rank));
+    }
+
+    [Fact]
+    public async Task Joining_twice_with_the_same_name_returns_the_same_participant()
+    {
+        var (sessionId, _, participantId) = await SeedAsync();
+
+        var again = await _service.AddParticipantAsync(sessionId, "player", "new-conn");
+
+        Assert.Equal(participantId, again.Id);
+        Assert.Single(await _service.GetParticipantsAsync(sessionId));
+    }
+
     private async Task<(int SessionId, int QuestionId, int ParticipantId)> SeedAsync()
     {
         var quiz = await _service.CreateQuizAsync(new Quiz

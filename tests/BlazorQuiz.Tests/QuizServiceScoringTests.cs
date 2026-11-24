@@ -121,6 +121,7 @@ public sealed class QuizServiceScoringTests : IDisposable
         public void StartQuestion(int sessionId, int questionId) { }
         public void RequestNextQuestion(int sessionId) { }
         public bool ConsumeNextQuestionRequest(int sessionId) => false;
+        public void ClearSession(int sessionId) { }
     }
 
     private sealed class FixedTimeZone : ITimeZoneService

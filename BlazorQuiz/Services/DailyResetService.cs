@@ -1,6 +1,7 @@
 using BlazorQuiz.Data;
 using BlazorQuiz.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace BlazorQuiz.Services
 {
@@ -61,6 +62,8 @@ namespace BlazorQuiz.Services
             _logger.LogInformation("Memulai pembersihan data harian (00:00 WIB)...");
             await using var db = _contextFactory.CreateDbContext();
 
+            var sessionIds = await db.QuizSessions.Select(s => s.Id).ToListAsync();
+
             db.QuizAnswers.RemoveRange(db.QuizAnswers);
             db.QuizParticipants.RemoveRange(db.QuizParticipants);
             db.QuizSessions.RemoveRange(db.QuizSessions);
@@ -68,6 +71,16 @@ namespace BlazorQuiz.Services
             await db.SaveChangesAsync();
 
             await EnsureDefaultQuizAsync(db, _timeZoneService.GetIndonesianTime());
+
+            // The rows are gone: drop everything memory still holds about them
+            var cache = _serviceProvider.GetRequiredService<IMemoryCache>();
+            var bus = _serviceProvider.GetRequiredService<IQuizEventBus>();
+            foreach (var id in sessionIds)
+            {
+                bus.ClearSession(id);
+                QuizService.ForgetSessionState(cache, id);
+            }
+            cache.Remove("all_quizzes");
 
             using var scope = _serviceProvider.CreateScope();
             await DataSeeder.SeedDefaultUserAsync(scope.ServiceProvider);

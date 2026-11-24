@@ -448,5 +448,16 @@ public class QuizService : IQuizService
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.IsActive, false)
                 .SetProperty(x => x.EndedAt, endedAt));
+
+        // Ended session: free its clock, pending request and leaderboard lock
+        _eventBus.ClearSession(sessionId);
+        ForgetSessionState(_cache, sessionId);
+    }
+
+    /// <summary>Removes the cached leaderboard and the single-flight lock of a session.</summary>
+    public static void ForgetSessionState(IMemoryCache cache, int sessionId)
+    {
+        cache.Remove(LeaderboardKey(sessionId));
+        LeaderboardLocks.TryRemove(sessionId, out _);
     }
 }

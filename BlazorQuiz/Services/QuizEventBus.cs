@@ -39,6 +39,8 @@ public interface IQuizEventBus
     int? GetElapsedMs(int sessionId, int questionId);
     void RequestNextQuestion(int sessionId);
     bool ConsumeNextQuestionRequest(int sessionId);
+    /// <summary>Drops the per-session question clock and pending next-question request (subscribers are kept).</summary>
+    void ClearSession(int sessionId);
 }
 
 /// <summary>
@@ -49,6 +51,7 @@ public class QuizEventBus : IQuizEventBus
 {
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<Guid, Func<QuizEvent, Task>>> _subscribers = new();
     private readonly ConcurrentDictionary<int, (int QuestionId, long StartTimestamp)> _activeQuestions = new();
+    private readonly object _subscribersLock = new();
     private readonly ConcurrentDictionary<int, bool> _nextRequests = new();
     private readonly ConcurrentDictionary<int, byte> _pendingLeaderboardRefresh = new();
     private static readonly TimeSpan LeaderboardRefreshDelay = TimeSpan.FromSeconds(1);
@@ -62,15 +65,28 @@ public class QuizEventBus : IQuizEventBus
     public IDisposable Subscribe(int sessionId, Func<QuizEvent, Task> handler)
     {
         var id = Guid.NewGuid();
-        var handlers = _subscribers.GetOrAdd(sessionId, _ => new());
-        handlers[id] = handler;
+        lock (_subscribersLock)
+        {
+            _subscribers.GetOrAdd(sessionId, _ => new())[id] = handler;
+        }
         return new Subscription(() =>
         {
-            if (_subscribers.TryGetValue(sessionId, out var current))
+            lock (_subscribersLock)
             {
-                current.TryRemove(id, out _);
+                if (_subscribers.TryGetValue(sessionId, out var current))
+                {
+                    current.TryRemove(id, out _);
+                    // Last listener gone: forget the session so ended sessions don't pile up
+                    if (current.IsEmpty) _subscribers.TryRemove(sessionId, out _);
+                }
             }
         });
+    }
+
+    public void ClearSession(int sessionId)
+    {
+        _activeQuestions.TryRemove(sessionId, out _);
+        _nextRequests.TryRemove(sessionId, out _);
     }
 
     public Task PublishAsync(QuizEvent quizEvent)

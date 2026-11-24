@@ -4,6 +4,7 @@
 @using BlazorQuiz.Services
 @layout Components.Layout.EmptyLayout
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthProvider
 @inject IQuizService QuizService
 @inject IQuizEventBus EventBus
 @implements IAsyncDisposable
@@ -295,7 +296,7 @@
                     </button>
 
                     @* BARU: Next Question Button *@
-                    @if (quizSession != null && !quizCompleted)
+                    @if (quizSession != null && !quizCompleted && isAdmin)
                     {
                         <button class="btn btn-success btn-lg me-2 next-question-btn" @onclick="NextQuestion" disabled="@processingNextQuestion">
                             @if (processingNextQuestion)
@@ -571,8 +572,14 @@
     private bool hasMoreQuestions = true;
     private bool processingNextQuestion = false;
 
+    private bool isAdmin;
+
+    private async Task<bool> IsAdminAsync() =>
+        (await AuthProvider.GetAuthenticationStateAsync()).User.IsInRole("Admin");
+
     protected override async Task OnInitializedAsync()
     {
+        isAdmin = await IsAdminAsync();
         try
         {
             await ActivityLogService.LogActivityAsync("Leaderboard page initialized", "Leaderboard page accessed", "Info", source: "Leaderboard");
@@ -711,7 +718,7 @@
     // BARU: Method to trigger next question
     private async Task NextQuestion()
     {
-        if (quizSession == null || processingNextQuestion) return;
+        if (quizSession == null || processingNextQuestion || !await IsAdminAsync()) return;
 
         try
         {

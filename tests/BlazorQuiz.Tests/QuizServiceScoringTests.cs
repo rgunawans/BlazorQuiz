@@ -68,6 +68,37 @@ public sealed class QuizServiceScoringTests : IDisposable
         Assert.Equal(10, answer.Points); // floor of the speed bonus
     }
 
+    [Fact]
+    public async Task Answer_from_participant_of_another_session_is_rejected()
+    {
+        var (sessionId, questionId, _) = await SeedAsync();
+        var (_, _, otherParticipantId) = await SeedAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.SubmitAnswerAsync(sessionId, questionId, otherParticipantId, 1));
+    }
+
+    [Fact]
+    public async Task Update_removes_deleted_questions_and_keeps_edits()
+    {
+        var quiz = await _service.CreateQuizAsync(new Quiz
+        {
+            Title = "T",
+            Questions =
+            {
+                new Question { Text = "A", Options = ["a", "b"], CorrectOptionIndex = 0 },
+                new Question { Text = "B", Options = ["a", "b"], CorrectOptionIndex = 1 }
+            }
+        });
+
+        var edit = new Quiz { Id = quiz.Id, Title = "T2", Questions = { new Question { Id = quiz.Questions[1].Id, Text = "B2", Options = ["a", "b"], CorrectOptionIndex = 1 } } };
+        await _service.UpdateQuizAsync(edit);
+
+        var saved = await _service.GetQuizByIdAsync(quiz.Id);
+        Assert.Equal("T2", saved!.Title);
+        Assert.Equal("B2", saved.Questions.Single().Text);
+    }
+
     private async Task<(int SessionId, int QuestionId, int ParticipantId)> SeedAsync()
     {
         var quiz = await _service.CreateQuizAsync(new Quiz

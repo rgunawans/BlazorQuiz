@@ -98,18 +98,42 @@ public class QuizService : IQuizService
     public async Task<Quiz> UpdateQuizAsync(Quiz quiz)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        quiz.UpdatedAt = _timeZoneService.GetIndonesianTime(); // Use Indonesian time
+        var stored = await context.Quizzes.Include(q => q.Questions).FirstOrDefaultAsync(q => q.Id == quiz.Id)
+            ?? throw new InvalidOperationException("Quiz not found");
 
-        // Update order index for questions
+        stored.Title = quiz.Title;
+        stored.Description = quiz.Description;
+        stored.UpdatedAt = _timeZoneService.GetIndonesianTime(); // Use Indonesian time
+
+        // Questions missing from the edited list are deleted; the rest are updated or added
+        var keptIds = quiz.Questions.Where(q => q.Id != 0).Select(q => q.Id).ToHashSet();
+        context.Questions.RemoveRange(stored.Questions.Where(q => !keptIds.Contains(q.Id)));
+
         for (int i = 0; i < quiz.Questions.Count; i++)
         {
-            quiz.Questions.ElementAt(i).OrderIndex = i;
+            var edited = quiz.Questions[i];
+            var existing = edited.Id == 0 ? null : stored.Questions.FirstOrDefault(q => q.Id == edited.Id);
+            if (existing == null)
+            {
+                stored.Questions.Add(new Question
+                {
+                    Text = edited.Text,
+                    OptionsJson = edited.OptionsJson,
+                    CorrectOptionIndex = edited.CorrectOptionIndex,
+                    OrderIndex = i,
+                    CreatedAt = _timeZoneService.GetIndonesianTime()
+                });
+                continue;
+            }
+            existing.Text = edited.Text;
+            existing.OptionsJson = edited.OptionsJson;
+            existing.CorrectOptionIndex = edited.CorrectOptionIndex;
+            existing.OrderIndex = i;
         }
 
-        context.Quizzes.Update(quiz);
         await context.SaveChangesAsync();
         InvalidateQuizCache(quiz.Id);
-        return quiz;
+        return stored;
     }
 
     public async Task<bool> DeleteQuizAsync(int id)
@@ -241,6 +265,14 @@ public class QuizService : IQuizService
 
         var question = await context.Questions.FindAsync(questionId);
         if (question == null) throw new InvalidOperationException("Question not found");
+
+        // Participant and question must both belong to this session
+        var sessionQuizId = await context.QuizSessions.AsNoTracking()
+            .Where(s => s.Id == sessionId).Select(s => (int?)s.QuizId).FirstOrDefaultAsync();
+        var participantInSession = await context.QuizParticipants
+            .AnyAsync(p => p.Id == participantId && p.QuizSessionId == sessionId);
+        if (sessionQuizId != question.QuizId || !participantInSession)
+            throw new InvalidOperationException("Participant or question does not belong to this session");
 
         // Time is measured on the server; unknown start (e.g. app restart) counts as the slowest answer
         var elapsedMs = _eventBus.GetElapsedMs(sessionId, questionId) ?? QuestionTimeMs;
@@ -416,5 +448,16 @@ public class QuizService : IQuizService
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.IsActive, false)
                 .SetProperty(x => x.EndedAt, endedAt));
+
+        // Ended session: free its clock, pending request and leaderboard lock
+        _eventBus.ClearSession(sessionId);
+        ForgetSessionState(_cache, sessionId);
+    }
+
+    /// <summary>Removes the cached leaderboard and the single-flight lock of a session.</summary>
+    public static void ForgetSessionState(IMemoryCache cache, int sessionId)
+    {
+        cache.Remove(LeaderboardKey(sessionId));
+        LeaderboardLocks.TryRemove(sessionId, out _);
     }
 }

@@ -2,7 +2,7 @@
 @using BlazorQuiz.Models
 @using BlazorQuiz.Services
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin")]
 @inject IQuizService QuizService
 @inject IActivityLogService ActivityLogService
 @inject NavigationManager Navigation
@@ -466,7 +466,22 @@
             var loadedQuiz = await QuizService.GetQuizByIdAsync(quizId);
             if (loadedQuiz != null)
             {
-                quiz = loadedQuiz;
+                // Edit a copy: the loaded object is shared through the service cache
+                quiz = new Quiz
+                {
+                    Id = loadedQuiz.Id,
+                    Title = loadedQuiz.Title,
+                    Description = loadedQuiz.Description,
+                    Questions = loadedQuiz.Questions.Select(q => new Question
+                    {
+                        Id = q.Id,
+                        QuizId = q.QuizId,
+                        Text = q.Text,
+                        OptionsJson = q.OptionsJson,
+                        CorrectOptionIndex = q.CorrectOptionIndex,
+                        OrderIndex = q.OrderIndex
+                    }).ToList()
+                };
                 statusMessage = L.T($"Quiz '{quiz.Title}' berhasil dimuat untuk diedit.", $"Quiz '{quiz.Title}' loaded for editing.");
                 await ActivityLogService.LogActivityAsync("Quiz loaded for editing", $"Quiz loaded: {quiz.Title} (ID: {quizId})", "Info", source: "QuestionEditor");
                 StateHasChanged();

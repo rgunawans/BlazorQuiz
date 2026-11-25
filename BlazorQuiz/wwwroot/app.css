@@ -313,7 +313,7 @@ h1, h2, h3, h4, h5, h6 {
 .quiz-timer {
     font-size: 3rem;
     font-weight: 800;
-    background-color: #864cbf; /* Kahoot purple timer */
+    background-color: var(--ynex-primary);
     color: white;
     border-radius: 50%;
     width: 100px;
@@ -397,7 +397,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Misc */
 .text-primary { color: var(--ynex-primary) !important; }
-/* Text colors darkened to reach WCAG AA (4.5:1) on the #f2f2f2 page background */
+/* Text colors darkened to reach WCAG AA (4.5:1) on the light page background */
 .text-muted { color: var(--kahoot-muted) !important; }
 .text-info { color: var(--kahoot-blue) !important; }
 .text-warning { color: #7a5a00 !important; }
@@ -461,7 +461,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .navbar-toggler { min-width: 44px; justify-content: center; }
 
-/* One palette: dark neutral (primary) + the four answer colors; blue is the accent (info). */
+/* One palette: purple primary + the four answer colors; blue is the secondary accent (info). */
 :root {
     --bs-primary: #845adf;
     --bs-primary-rgb: 132, 90, 223;
@@ -597,7 +597,7 @@ button:focus-visible {
 /* Language switcher (ID / EN) */
 .lang-switch { display: inline-flex; border: 1px solid var(--kahoot-border); border-radius: .4rem; overflow: hidden; background: var(--kahoot-card); }
 .lang-switch-link { padding: .2rem .55rem; font-size: .75rem; font-weight: 600; color: var(--kahoot-muted); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
-.lang-switch-link.active { background: #845adf; color: #fff; }
+.lang-switch-link.active { background: var(--ynex-primary); color: #fff; }
 .lang-switch-link:not(.active):hover { background: var(--kahoot-track); color: var(--kahoot-text); }
 
 /* Theme toggle and menu */

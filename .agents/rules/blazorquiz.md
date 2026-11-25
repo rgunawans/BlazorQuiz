@@ -27,3 +27,15 @@ Tugas Anda membangun quiz system seperti Kahoot. Anda boleh menggunakan MudBlazo
 - Satu `#blazor-error-ui`, hanya di `App.razor`.
 - Halaman publik (Home, Gabung Quiz, Leaderboard) harus tetap bisa diakses tanpa login.
 - Jalankan `dotnet build` sebelum menyatakan perubahan selesai.
+
+<!-- antislop:start -->
+## antislop
+Skill antislop dipasang di level user, bukan di repo ini, sehingga satu pembaruan berlaku untuk semua proyek. Muat skill tersebut dengan tool Skill; tidak ada folder skills di sini untuk dibaca.
+Untuk pekerjaan UI, teks, aksesibilitas, layout mobile, atau komentar kode, muat `antislop` (inti) lalu skill sesuai tugas:
+- UI / visual: `antislop-ui`
+- Teks & copywriting: `antislop-copywriting`
+- Manusia / aksesibilitas: `antislop-human`
+- Mobile / responsif: `antislop-layoutmobile`
+- Komentar kode: `antislop-code`
+Sebelum mulai, tanyakan kepada user kapan antislop diterapkan: selama pekerjaan, atau setelah selesai.
+<!-- antislop:end -->

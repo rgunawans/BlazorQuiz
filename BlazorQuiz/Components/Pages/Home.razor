@@ -37,7 +37,7 @@
                 </div>
             </div>
 
-            <div class="card border-info mb-4 home-join">
+            <div class="card border-primary mb-4 home-join">
                 <div class="card-body text-center py-5">
                     <h2 class="card-title">@L.T("Gabung Quiz", "Join Quiz")</h2>
                     <form method="post" @formname="join-quiz" @onsubmit="JoinQuiz" class="home-join-form">
@@ -46,7 +46,7 @@
                         <input id="home-session-code" name="joinCode" class="form-control form-control-lg text-center fw-bold mb-3"
                                maxlength="12" autocomplete="off" autocapitalize="characters" required
                                @bind="joinCode" />
-                        <button type="submit" class="btn btn-info btn-lg w-100">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
                             <i class="bi bi-box-arrow-in-right me-2"></i>@L.T("Gabung", "Join")
                         </button>
                     </form>
@@ -56,70 +56,26 @@
                 </div>
             </div>
 
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <i class="bi bi-pencil-square fs-1 text-primary mb-2 d-block"></i>
-                            <h5 class="card-title">@L.T("Editor Quiz", "Quiz Editor")</h5>
-                            <p class="card-text">@L.T("Buat dan edit quiz dengan pertanyaan multiple choice.", "Create and edit quizzes with multiple-choice questions.")</p>
-                            <AuthorizeView>
-                                <Authorized>
-                                    <a href="/quiz-editor" class="btn btn-primary">
-                                        <i class="bi bi-plus-circle me-2"></i>@L.T("Buat Quiz", "Create Quiz")
-                                    </a>
-                                </Authorized>
-                                <NotAuthorized>
-                                    <a href="/auto-login?target=editor" class="btn btn-primary">
-                                        <i class="bi bi-lightning-fill me-1"></i>@L.T("Editor Quiz (Auto-login)", "Quiz Editor (Auto-login)")
-                                    </a>
-                                    <small class="text-success mt-2 d-block">
-                                        <i class="bi bi-shield-check me-1"></i>@L.T("1-Klik Demo Login", "1-Click Demo Login")
-                                    </small>
-                                </NotAuthorized>
-                            </AuthorizeView>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <i class="bi bi-person-video3 fs-1 text-primary mb-2 d-block"></i>
-                            <h5 class="card-title">Host Quiz</h5>
-                            <p class="card-text">@L.T("Jalankan quiz secara real-time dan pantau jawaban peserta.", "Run a quiz in real time and follow participants' answers.")</p>
-                            <AuthorizeView>
-                                <Authorized>
-                                    <a href="/quiz-host" class="btn btn-primary">
-                                        <i class="bi bi-play-fill me-2"></i>@L.T("Mulai Sesi", "Start Session")
-                                    </a>
-                                </Authorized>
-                                <NotAuthorized>
-                                    <a href="/auto-login?target=host" class="btn btn-primary">
-                                        <i class="bi bi-lightning-fill me-1"></i>@L.T("Host Quiz (Auto-login)", "Host Quiz (Auto-login)")
-                                    </a>
-                                    <small class="text-success mt-2 d-block">
-                                        <i class="bi bi-shield-check me-1"></i>@L.T("1-Klik Demo Login", "1-Click Demo Login")
-                                    </small>
-                                </NotAuthorized>
-                            </AuthorizeView>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <i class="bi bi-trophy-fill fs-1 text-primary mb-2 d-block"></i>
-                            <h5 class="card-title">Leaderboard</h5>
-                            <p class="card-text">@L.T("Lihat peringkat dan statistik peserta secara real-time.", "See rankings and participant statistics in real time.")</p>
-                            <a href="/leaderboard" class="btn btn-primary">
-                                <i class="bi bi-bar-chart me-2"></i>@L.T("Lihat Peringkat", "View Rankings")
-                            </a>
-                            <small class="text-muted mt-2 d-block">
-                                <i class="bi bi-unlock-fill me-1"></i>@L.T("Tidak perlu login", "No login required")
-                            </small>
-                        </div>
-                    </div>
-                </div>
+            <div class="text-center mb-4">
+                <a href="/leaderboard" class="btn btn-outline-primary">
+                    <i class="bi bi-bar-chart me-2"></i>@L.T("Lihat Peringkat", "View Rankings")
+                </a>
+                <small class="text-muted d-block mt-2">@L.T("Peringkat dan statistik peserta, tanpa login.", "Rankings and participant statistics, no login required.")</small>
+            </div>
+
+            <div class="text-center text-muted small">
+                <AuthorizeView>
+                    <Authorized>
+                        @L.T("Untuk host:", "For hosts:")
+                        <a href="/quiz-editor">@L.T("Editor Quiz", "Quiz Editor")</a> &middot;
+                        <a href="/quiz-host">Host Quiz</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        @L.T("Demo untuk host (1-klik, tanpa password):", "Host demo (1-click, no password):")
+                        <a href="/auto-login?target=editor">@L.T("Editor Quiz", "Quiz Editor")</a> &middot;
+                        <a href="/auto-login?target=host">Host Quiz</a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
 
             <div class="text-center mt-4">
